@@ -15,6 +15,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.6"]
+notebooks = ["jupyterlab>=4.2", "ipykernel>=6.29"]
 
 [build-system]
 requires = ["setuptools>=68"]
