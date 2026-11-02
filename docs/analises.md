@@ -1,6 +1,6 @@
 # O que descobrimos nos chamados do 156
 
-Resumo dos notebooks [01_data_cleaning](../notebooks/01_data_cleaning.ipynb) (como os dados foram entendidos e tratados) [02_business_analysis](../notebooks/02_business_analysis.ipynb) (as perguntas de negócio, com as consultas e os gráficos) e [03_weather_hypothesis](../notebooks/03_weather_hypothesis.ipynb) (o efeito da chuva). Recorte: 204.408 chamados abertos em 2024 e 2025, com a situação conhecida até 31/12/2025.
+Resumo dos notebooks [01_data_cleaning](../notebooks/01_data_cleaning.ipynb) (como os dados foram entendidos e tratados) [02_business_analysis](../notebooks/02_business_analysis.ipynb) (as perguntas de negócio, com as consultas e os gráficos) [03_weather_hypothesis](../notebooks/03_weather_hypothesis.ipynb) (o efeito da chuva) e [04_resolution_model](../notebooks/04_resolution_model.ipynb) (o modelo que prevê o atendimento em 30 dias). Recorte: 204.408 chamados abertos em 2024 e 2025, com a situação conhecida até 31/12/2025.
 
 Em uma frase: o 156 recebe sobretudo pedidos de iluminação, que são atendidos em poucos dias; o problema está em drenagem e arborização, onde a espera depende da região da cidade, a fila em aberto é grande e antiga e a chuva forte empurra a demanda para cima.
 
@@ -18,6 +18,8 @@ Em uma frase: o 156 recebe sobretudo pedidos de iluminação, que são atendidos
 
 6. Chuva forte aumenta a demanda, mas não explica a fila. Nos 75 dias mais chuvosos, drenagem ficou 13% acima do normal para aquele mês e dia da semana e arborização, 20%; limpeza urbana não subiu. A previsão do tempo serve de gatilho para reforçar drenagem e poda depois de temporais, mas o ganho é de poucos chamados por dia (cerca de 3 em drenagem e 6 em arborização).
 
+7. Dá para prever na abertura quem vai atrasar, e o serviço é quase tudo. A taxa histórica de cada serviço já separa muito bem os chamados atendidos em até 30 dias dos que não são (AUC 0,954). Um modelo que acrescenta bairro e demanda recente melhora pouco no geral (AUC 0,960), mas acerta mais quando alerta um atraso (89% contra 83%) e reduz o erro em 38% em arborização e 25% em drenagem, os serviços em que a região pesa. Esse alerta alimenta a página Previsões do dashboard.
+
 ![Mediana de dias até o atendimento por região](img/resolution_by_rpa.png)
 
 ## Hipóteses testadas
@@ -27,6 +29,7 @@ Em uma frase: o 156 recebe sobretudo pedidos de iluminação, que são atendidos
 | H1. Os 10 serviços mais pedidos somam pelo menos 70% dos chamados | Participação acumulada dos serviços | Confirmada: 78% |
 | H2. Dentro de um mesmo grupo de serviço, a RPA mais lenta não leva mais que o dobro da mais rápida | Mediana de dias até o atendimento; desigual se a diferença passa de 2 vezes e de 7 dias | Refutada em drenagem (177 contra 1 dia) e arborização (35 contra 13); confirmada em iluminação e limpeza urbana |
 | H3. Nos dias de chuva forte, os chamados de drenagem ficam acima do normal | Cada dia contra a média do mesmo dia da semana no mesmo mês; dias chuvosos são os 10% com mais chuva em 3 dias; Mann-Whitney | Confirmada: +13% em drenagem (p = 0,008) e +20% em arborização (p < 0,001) |
+| H4. Um modelo com bairro, data, chuva e demanda prevê o atendimento em 30 dias melhor que o histórico do serviço | Validação temporal (treino até 31/05/2025, teste de 01/07 a 01/12/2025); AUC, Brier e precisão do alerta | Confirmada com ganho modesto: AUC 0,960 contra 0,954 e Brier 0,067 contra 0,073 |
 
 ## Cuidados ao ler os números
 
