@@ -22,7 +22,7 @@ Os CSVs usam `;` como separador e têm 13 colunas, todas lidas como texto e tipa
 | `SERVICO_CODIGO` | `service_code` | inteiro | Código do serviço | 110 serviços distintos nos dois anos |
 | `SERVICO_DESCRICAO` | `service_name` | texto | Nome do serviço (ex.: MANUTENCAO EM LAMPADA APAGADA) | Cada serviço pertence a um único grupo |
 | `LOGRADOURO` | `street` | texto | Tipo e nome da via (ex.: `RUA  do Chacon`) | Espaços duplicados entre tipo e nome |
-| `NUMERO` | `street_number` | texto | Número do imóvel | Preenchido com espaços à direita; usa `SN`, `S/N` e textos como `TODA VIA` |
+| `NUMERO` | `street_number` | texto | Número do imóvel | Preenchido com espaços à direita; `SN`, `S/N`, `00` e `0` indicam imóvel sem número |
 | `BAIRRO` | `neighborhood` | texto | Bairro | 96 valores nos dois anos, incluindo `BAIRRO NAO INFORMADO` (54 linhas) e `INDEFINIDO` |
 | `RPA` | `rpa` | inteiro (1 a 6) | Região Político-Administrativa | Quatro bairros aparecem com duas RPAs em poucas linhas |
 | `DATA_DEMANDA` | `opened_on` | data | Data de abertura do chamado | Sem valores inválidos; há chamados abertos desde 2008 |
@@ -35,9 +35,11 @@ Valores de `SITUACAO` encontrados: `CADASTRADA`, `PREPARACAO`, `EXECUCAO`, `PEND
 
 ## Particularidades encontradas
 
+Como cada uma foi encontrada, com os números, está no notebook [01_data_cleaning.ipynb](../notebooks/01_data_cleaning.ipynb).
+
 Cada arquivo anual é uma foto do fim daquele ano. O arquivo de 2025 traz todos os chamados cuja última mudança de situação aconteceu em 2025, inclusive chamados abertos em anos anteriores (9.560 linhas abertas antes de 2025). Por isso o mesmo chamado aparece em mais de um arquivo, com situações diferentes: 3.034 chamados do arquivo de 2025 também estão no de 2024, a maioria passando de `EXECUCAO` ou `CADASTRADA` para `ATENDIDA`.
 
-Não existe identificador do chamado. O projeto reconhece o mesmo chamado em anos diferentes pela combinação de serviço, logradouro, número, bairro e data de abertura. Linhas com a mesma combinação dentro de um mesmo arquivo (cerca de 2% das linhas) são tratadas como chamados distintos, e o pareamento entre arquivos segue a ordem de aparição.
+Não existe identificador do chamado. O projeto reconhece o mesmo chamado em anos diferentes pela combinação de serviço, logradouro, número, bairro e data de abertura. Linhas com a mesma combinação dentro de um mesmo arquivo (2,6% das linhas de 2025) são tratadas como chamados distintos, e o pareamento entre arquivos segue a ordem de aparição.
 
 O portal lista 2024 e 2025 duas vezes. Os dois recursos de 2025 são diferentes (um vai até setembro e o outro cobre o ano inteiro), então a ingestão escolhe, para cada ano, o recurso modificado mais recentemente.
 
@@ -50,10 +52,10 @@ Os arquivos até 2023 seguem outro padrão: códigos de grupo e serviço numerad
 | Espaços de preenchimento e duplicados | `strip` e espaços únicos | `clean_tickets`, `normalize_text` |
 | Acentos e caixa diferentes entre anos | Texto em maiúsculas, sem acentos | `normalize_text` |
 | Bairro não informado | `BAIRRO NAO INFORMADO` e `INDEFINIDO` viram nulo | `clean_neighborhood` |
-| Número sem valor | `SN`, `S/N` e vazio viram nulo | `clean_street_number` |
+| Número sem valor | `SN`, `S/N`, `0`, `00` e vazio viram nulo | `clean_street_number` |
 | Coordenadas fora do Recife | Nulas fora da caixa lat [-8,20; -7,90] e lon [-35,05; -34,80] | `clean_coordinates` |
 | Linhas sem código, data de abertura ou situação | Descartadas (nenhuma nos arquivos atuais) | `clean_tickets` |
-| Linhas idênticas no mesmo arquivo | Removidas (49 em 2024 e 39 em 2025, após a padronização) | `clean_tickets` |
+| Linhas idênticas no arquivo bruto | Removidas (nenhuma nos arquivos atuais); linhas que só ficam iguais depois da padronização continuam como chamados distintos | `clean_tickets` |
 | Mesmo chamado em vários arquivos | Mantida só a versão mais recente | `deduplicate_snapshots` |
 | Chamados abertos antes do recorte | Descartados | `combine_snapshots` |
 | Bairro com mais de uma RPA | Fica com a RPA mais frequente | `build_tables` |
