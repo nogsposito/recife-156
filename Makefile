@@ -3,7 +3,7 @@ RUN = $(COMPOSE) run --rm pipeline
 RUN_NO_DB = $(COMPOSE) run --rm --no-deps pipeline
 
 .DEFAULT_GOAL := help
-.PHONY: help build db pipeline ingest load notebooks jupyter test lint format psql down clean
+.PHONY: help build db pipeline ingest load dashboard notebooks jupyter test lint format psql down clean
 
 help: ## Show available targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-10s %s\n", $$1, $$2}'
@@ -22,6 +22,10 @@ ingest: ## Download the yearly CSVs from the open data portal
 
 load: ## Clean the downloaded files and load them into PostgreSQL
 	$(RUN) python -m src.pipeline --step load
+
+dashboard: ## Open the dashboard at http://localhost:8501 with the data already loaded
+	$(COMPOSE) up -d --wait db
+	$(COMPOSE) up -d --no-deps dashboard
 
 notebooks: ## Re-run both notebooks, refreshing their outputs and the charts in docs/img
 	$(RUN) jupyter nbconvert --to notebook --execute --inplace notebooks/*.ipynb
