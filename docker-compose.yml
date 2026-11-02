@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-recife}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-recife}
+      POSTGRES_DB: ${POSTGRES_DB:-recife156}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Runs the full pipeline once (ingest, clean, load, report) and exits
+  pipeline:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-recife}:${POSTGRES_PASSWORD:-recife}@db:5432/${POSTGRES_DB:-recife156}
+      YEARS: ${YEARS:-2024,2025}
+    volumes:
+      - .:/app
+
+volumes:
+  pgdata:
