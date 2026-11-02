@@ -2,7 +2,7 @@
 -- question: A demanda está crescendo? Como cada mês se compara ao mesmo mês do ano anterior?
 WITH monthly AS (
     SELECT DATE_TRUNC('month', opened_on)::date AS month, COUNT(*) AS tickets
-    FROM tickets
+    FROM fact_tickets
     GROUP BY 1
 )
 SELECT
