@@ -35,11 +35,11 @@ def format_number(value: float, decimals: int = 0) -> str:
     return text.replace(",", "_").replace(".", ",").replace("_", ".")
 
 
+# Saves the image for the docs and keeps the figure open so notebooks display it inline
 def _save(fig: plt.Figure, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.tight_layout()
     fig.savefig(path, dpi=150)
-    plt.close(fig)
 
 
 # One line per year over the months, so seasonality and growth can be read together

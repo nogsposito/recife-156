@@ -15,7 +15,7 @@ services:
       timeout: 3s
       retries: 10
 
-  # Runs the full pipeline once (ingest, clean, load, report) and exits
+  # Runs the data pipeline once (ingest, clean, load) and exits
   pipeline:
     build: .
     depends_on:

@@ -47,18 +47,27 @@ def test_clean_coordinates_drops_points_outside_recife():
     assert lat.iloc[1:].isna().all() and lon.iloc[1:].isna().all()
 
 
-def test_clean_tickets_types_columns_and_drops_rows_without_required_fields():
-    raw = pd.DataFrame([raw_row(), raw_row(DATA_DEMANDA="not a date"), raw_row(NUMERO="SN")])
+def test_clean_tickets_types_columns_and_drops_invalid_and_duplicated_rows():
+    raw = pd.DataFrame(
+        [
+            raw_row(),
+            raw_row(),
+            raw_row(DATA_DEMANDA="not a date"),
+            raw_row(NUMERO="SN"),
+            # Same as the row above once cleaned, but typed differently: a separate ticket
+            raw_row(NUMERO="00"),
+        ]
+    )
     clean = clean_tickets(raw, source_year=2024)
 
-    assert len(clean) == 2
+    assert len(clean) == 3
     first = clean.iloc[0]
     assert first.street == "RUA DO CHACON"
     assert first.street_number == "65"
     assert first.neighborhood == "JARDIM SAO PAULO"
     assert first.opened_on == pd.Timestamp("2024-08-03")
     assert first.service_code == 10 and first.rpa == 5
-    assert pd.isna(clean.iloc[1].street_number)
+    assert clean.iloc[1:].street_number.isna().all()
 
 
 def test_deduplicate_snapshots_keeps_latest_status_of_each_ticket():

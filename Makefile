@@ -3,7 +3,7 @@ RUN = $(COMPOSE) run --rm pipeline
 RUN_NO_DB = $(COMPOSE) run --rm --no-deps pipeline
 
 .DEFAULT_GOAL := help
-.PHONY: help build db pipeline ingest load report test lint format psql down clean
+.PHONY: help build db pipeline ingest load notebooks jupyter test lint format psql down clean
 
 help: ## Show available targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-10s %s\n", $$1, $$2}'
@@ -14,7 +14,7 @@ build: ## Build the pipeline image
 db: ## Start PostgreSQL in the background
 	$(COMPOSE) up -d --wait db
 
-pipeline: ## Run everything: ingest, clean, load and report
+pipeline: ## Download, clean and load the data into PostgreSQL
 	$(RUN) python -m src.pipeline
 
 ingest: ## Download the yearly CSVs from the open data portal
@@ -23,8 +23,11 @@ ingest: ## Download the yearly CSVs from the open data portal
 load: ## Clean the downloaded files and load them into PostgreSQL
 	$(RUN) python -m src.pipeline --step load
 
-report: ## Run the SQL analyses and regenerate docs/analises.md
-	$(RUN) python -m src.pipeline --step report
+notebooks: ## Re-run both notebooks, refreshing their outputs and the charts in docs/img
+	$(RUN) jupyter nbconvert --to notebook --execute --inplace notebooks/*.ipynb
+
+jupyter: ## Open JupyterLab at http://localhost:8888 (no token, bound to localhost only)
+	$(COMPOSE) run --rm -p 127.0.0.1:8888:8888 pipeline jupyter lab --ip=0.0.0.0 --allow-root --no-browser --IdentityProvider.token='' --notebook-dir=notebooks
 
 test: ## Run the test suite
 	$(RUN_NO_DB) pytest

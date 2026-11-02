@@ -8,7 +8,7 @@ WORKDIR /app
 # Install dependencies first so code changes don't invalidate this layer
 COPY pyproject.toml README.md ./
 COPY src ./src
-RUN pip install --no-cache-dir -e ".[dev]"
+RUN pip install --no-cache-dir -e ".[dev,notebooks]"
 
 COPY . .
 

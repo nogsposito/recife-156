@@ -1,7 +1,6 @@
 import argparse
 import logging
 
-from src.analysis.report import build_report
 from src.config import YEARS
 from src.db.load import load_tables
 from src.ingestion.ckan import ingest
@@ -23,7 +22,7 @@ def run_load(years: list[int], force_download: bool = False) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Recife 156 data pipeline")
-    parser.add_argument("--step", choices=["all", "ingest", "load", "report"], default="all")
+    parser.add_argument("--step", choices=["all", "ingest", "load"], default="all")
     parser.add_argument("--force-download", action="store_true", help="ignore cached raw files")
     args = parser.parse_args()
 
@@ -36,8 +35,6 @@ def main() -> None:
         ingest(YEARS, force=args.force_download)
     if args.step in ("all", "load"):
         run_load(YEARS, force_download=args.force_download)
-    if args.step in ("all", "report"):
-        build_report()
 
 
 if __name__ == "__main__":
