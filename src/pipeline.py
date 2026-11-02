@@ -4,20 +4,24 @@ import logging
 from src.config import YEARS
 from src.db.load import load_tables
 from src.ingestion.ckan import ingest
+from src.ingestion.weather import fetch_daily_weather, parse_daily_weather
 from src.transform.cleaning import clean_tickets, combine_snapshots, read_raw_csv
 from src.transform.modeling import build_tables
 
 log = logging.getLogger("pipeline")
 
 
-# Also downloads any missing raw file, so "load" works on a fresh clone
+# Also downloads any missing raw file, so "load" works on a fresh clone. Weather is fetched
+# for exactly the days the tickets cover, so every ticket date has a weather row.
 def run_load(years: list[int], force_download: bool = False) -> None:
     paths = ingest(years, force=force_download)
     frames = [
         clean_tickets(read_raw_csv(path), year) for year, path in zip(years, paths, strict=True)
     ]
     tickets = combine_snapshots(frames, years)
-    load_tables(build_tables(tickets))
+    first_day, last_day = tickets["opened_on"].min().date(), tickets["opened_on"].max().date()
+    weather = parse_daily_weather(fetch_daily_weather(first_day, last_day, force=force_download))
+    load_tables(build_tables(tickets, weather))
 
 
 def main() -> None:

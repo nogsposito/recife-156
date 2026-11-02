@@ -11,6 +11,9 @@ dependencies = [
     "sqlalchemy>=2.0",
     "psycopg[binary]>=3.2",
     "matplotlib>=3.9",
+    "plotly>=5.24",
+    "scipy>=1.14",
+    "streamlit>=1.40",
 ]
 
 [project.optional-dependencies]
