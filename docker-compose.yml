@@ -15,10 +15,11 @@ services:
       timeout: 3s
       retries: 10
 
-  # Runs the data pipeline once (ingest, clean, load) and exits
+  # Runs the data pipeline and trains the model once, then exits
   pipeline:
     build: .
     image: recife-156
+    command: sh -c "python -m src.pipeline && python -m src.ml.train"
     depends_on:
       db:
         condition: service_healthy
