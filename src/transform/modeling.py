@@ -15,7 +15,7 @@ TICKET_COLUMNS = [
 
 
 # Splits the clean tickets into the tables of the relational model (sql/schema.sql)
-def build_tables(tickets: pd.DataFrame) -> dict[str, pd.DataFrame]:
+def build_tables(tickets: pd.DataFrame, weather: pd.DataFrame) -> dict[str, pd.DataFrame]:
     latest_first = tickets.sort_values("source_year", ascending=False, kind="stable")
     groups = latest_first.drop_duplicates("group_code")[["group_code", "group_name"]]
     services = latest_first.drop_duplicates("service_code")[
@@ -42,5 +42,6 @@ def build_tables(tickets: pd.DataFrame) -> dict[str, pd.DataFrame]:
         "service_groups": groups.sort_values("group_code"),
         "services": services.sort_values("service_code"),
         "neighborhoods": neighborhoods,
+        "daily_weather": weather,
         "tickets": fact[TICKET_COLUMNS],
     }
