@@ -1,6 +1,8 @@
 # Recife 156: o que os chamados de serviços urbanos revelam sobre a cidade
 
-Pipeline de dados ponta a ponta sobre os chamados do 156 da Emlurb, a central em que moradores do Recife pedem conserto de iluminação, limpeza, poda de árvores, drenagem, pavimentação e outros serviços urbanos. O projeto cruza os dados abertos da prefeitura com a chuva diária da cidade, trata e padroniza os arquivos, carrega tudo em um banco PostgreSQL modelado, responde perguntas de gestão com SQL em notebooks que registram cada descoberta e entrega um dashboard com uma visão para cada público: quem opera a central, quem gere os serviços e quem decide a estratégia.
+[![CI](https://github.com/nogsposito/recife-156/actions/workflows/ci.yml/badge.svg)](https://github.com/nogsposito/recife-156/actions/workflows/ci.yml)
+
+Pipeline de dados ponta a ponta sobre os chamados do 156 da Emlurb, a central em que moradores do Recife pedem conserto de iluminação, limpeza, poda de árvores, drenagem, pavimentação e outros serviços urbanos. O projeto cruza os dados abertos da prefeitura com a chuva diária da cidade, organiza o tratamento em camadas (bronze, silver e gold) com ingestão incremental e validações de qualidade, modela a camada final em esquema estrela no PostgreSQL, responde perguntas de gestão com SQL em notebooks que registram cada descoberta e entrega um dashboard com uma visão para cada público: quem opera a central, quem gere os serviços e quem decide a estratégia.
 
 ## O problema
 
@@ -19,68 +21,84 @@ O recorte padrão cobre os chamados abertos em 2024 e 2025: 204.408 chamados dep
 
 ```mermaid
 flowchart LR
-    A[Portal de Dados Abertos<br/>API CKAN] -->|CSV por ano| B[Ingestão<br/>src/ingestion]
-    W[Open-Meteo<br/>API histórica] -->|JSON diário| B
-    B --> C[(data/raw)]
-    C --> D[Limpeza e padronização<br/>src/transform]
-    C -.-> N1[Notebook 01<br/>descoberta dos problemas]
-    N1 -.->|regras| D
-    D -->|COPY| E[(PostgreSQL<br/>modelo relacional)]
-    E --> F[Consultas SQL<br/>sql/analyses]
-    F --> N2[Notebooks 02 e 03<br/>perguntas de negócio]
-    N2 --> G[Resumo<br/>docs/analises.md]
-    E --> V[Dashboard<br/>Streamlit]
+    A[Portal de Dados Abertos<br/>API CKAN] --> L[(landing<br/>CSV e JSON originais)]
+    W[Open-Meteo<br/>API histórica] --> L
+    L --> B[(bronze<br/>Parquet por ano)]
+    B --> S[(silver<br/>Parquet limpo)]
+    S --> Q{{validações<br/>de qualidade}}
+    Q --> G[(gold no PostgreSQL<br/>esquema estrela)]
+    Q -.-> O[(ops<br/>execuções e checagens)]
+    G --> N[Notebooks<br/>perguntas de negócio]
+    N --> R[Resumo<br/>docs/analises.md]
+    G --> D[Dashboard<br/>Streamlit]
 ```
 
-1. Ingestão ([src/ingestion/ckan.py](src/ingestion/ckan.py), [src/ingestion/weather.py](src/ingestion/weather.py)): consulta a API CKAN, escolhe o arquivo mais recente de cada ano pedido e baixa para `data/raw`. O clima diário vem da API histórica do Open-Meteo para exatamente os dias cobertos pelos chamados, e o JSON bruto fica guardado ao lado dos CSVs. Arquivos já baixados são reaproveitados.
-2. Limpeza ([src/transform/cleaning.py](src/transform/cleaning.py)): tipa datas e números, padroniza textos (caixa, acentos, espaços), anula placeholders e coordenadas fora do Recife e mantém só a versão mais recente de cada chamado que aparece em mais de um arquivo anual. As regras nasceram das descobertas do [notebook 01](notebooks/01_data_cleaning.ipynb), que usa as mesmas funções do pipeline.
-3. Modelagem e carga ([src/transform/modeling.py](src/transform/modeling.py), [src/db/load.py](src/db/load.py)): separa grupos, serviços e bairros em tabelas próprias, liga cada chamado ao clima do dia em que foi aberto e carrega tudo com `COPY` em uma única transação. A view `v_tickets` junta chamado, serviço, grupo e bairro para o dashboard.
-4. Análise ([notebook 02](notebooks/02_business_analysis.ipynb), [notebook 03](notebooks/03_weather_hypothesis.ipynb), [sql/analyses](sql/analyses)): cinco perguntas de gestão e o efeito da chuva, respondidos com nove consultas SQL versionadas e três hipóteses de negócio testadas. As conclusões ficam resumidas em [docs/analises.md](docs/analises.md).
-5. Dashboard ([app/](app)): três páginas em Streamlit e Plotly, uma por público, lendo direto do PostgreSQL.
+1. Ingestão incremental ([src/ingestion](src/ingestion)): consulta a API CKAN e o Open-Meteo, guarda os arquivos originais em `data/raw` e grava cada ano na bronze em Parquet, com colunas de origem. Um manifesto registra a versão e o hash de cada arquivo, e só o que mudou desde a última execução é baixado e regravado.
+2. Silver ([src/layers/silver.py](src/layers/silver.py), [src/transform/cleaning.py](src/transform/cleaning.py)): tipa datas e números, padroniza textos, anula placeholders e coordenadas fora do Recife e mantém só a versão mais recente de cada chamado que aparece em mais de um arquivo anual. As regras nasceram das descobertas do [notebook 01](notebooks/01_data_cleaning.ipynb), que usa as mesmas funções.
+3. Qualidade ([src/quality/checks.py](src/quality/checks.py)): doze validações sobre a silver. Uma falha grave interrompe a execução antes de tocar na gold.
+4. Gold ([sql/schema.sql](sql/schema.sql), [src/transform/modeling.py](src/transform/modeling.py), [src/db/load.py](src/db/load.py)): fato de chamados e dimensões de serviço, bairro e data (com o clima do dia), carregados com `COPY` e indexados em uma única transação.
+5. Análise ([notebooks](notebooks), [sql/analyses](sql/analyses)): cinco perguntas de gestão e o efeito da chuva, respondidos com dez consultas SQL versionadas e três hipóteses testadas. As conclusões ficam em [docs/analises.md](docs/analises.md).
+6. Dashboard ([app/](app)): três páginas em Streamlit e Plotly, uma por público, lendo a gold pela view `v_tickets`.
 
-### Modelo de dados
+O detalhe de cada camada, o fluxo de uma execução e o modelo completo estão em [docs/architecture.md](docs/architecture.md). As decisões de arquitetura têm registro próprio: [PostgreSQL](docs/adr/0001-postgresql-como-banco-analitico.md), [camadas](docs/adr/0002-camadas-bronze-silver-gold.md), [Parquet](docs/adr/0003-parquet-para-bronze-e-silver.md) e [carga incremental até a bronze e completa na gold](docs/adr/0004-carga-completa-da-gold.md).
+
+### Modelo da camada gold
 
 ```mermaid
 erDiagram
-    service_groups ||--o{ services : agrupa
-    services ||--o{ tickets : "pedido de"
-    neighborhoods ||--o{ tickets : "localizado em"
-    daily_weather ||--o{ tickets : "dia de abertura"
-    service_groups {
-        integer group_code PK
-        text group_name
-    }
-    services {
+    dim_service ||--o{ fact_tickets : "pedido de"
+    dim_neighborhood ||--o{ fact_tickets : "localizado em"
+    dim_date ||--o{ fact_tickets : "aberto em"
+    dim_service {
         integer service_code PK
         text service_name
-        integer group_code FK
+        text group_name
     }
-    neighborhoods {
+    dim_neighborhood {
         integer neighborhood_id PK
         text neighborhood_name
         smallint rpa
     }
-    daily_weather {
-        date weather_date PK
+    dim_date {
+        date date_key PK
+        smallint day_of_week
+        boolean is_weekend
         real precipitation_mm
-        real temp_max_c
-        real temp_min_c
-        real temp_mean_c
     }
-    tickets {
+    fact_tickets {
         bigint ticket_id PK
         integer service_code FK
         integer neighborhood_id FK
-        date opened_on
+        date opened_on FK
         text status
-        date status_updated_on
+        boolean is_open
         integer days_to_last_update
-        double latitude
-        double longitude
     }
 ```
 
-A coluna `days_to_last_update` é calculada pelo próprio PostgreSQL (coluna gerada) e, para chamados atendidos, é o tempo de resolução.
+`is_open` e `days_to_last_update` são colunas geradas pelo próprio PostgreSQL; para chamados atendidos, `days_to_last_update` é o tempo de resolução.
+
+## Qualidade e confiabilidade
+
+- Idempotência: rodar o pipeline duas vezes seguidas dá a mesma gold. A segunda execução reconhece pelo manifesto que nada mudou no portal nem no clima e não baixa nada.
+- Incremental: um ano só é baixado de novo quando o portal publica outra versão, e só é regravado na bronze quando o conteúdo também mudou (comparação por hash). Se o portal estiver fora do ar e a bronze já existir, o pipeline segue com ela e registra um aviso.
+- Validações: campos obrigatórios, datas dentro do recorte e coerentes entre si, RPA válida, coordenadas dentro do Recife, um grupo por serviço, um registro de clima por dia e clima para todos os dias com chamado. Situações nunca vistas e bairros faltando acima de 1% geram só alerta.
+- Rastreabilidade: cada execução fica em `ops.pipeline_runs` (o que mudou, quantas linhas, sucesso ou falha) e cada validação em `ops.quality_checks`.
+- Atomicidade: a gold é recriada em uma única transação; uma falha no meio deixa a versão anterior intacta.
+
+## SQL e otimização
+
+As consultas em [sql/analyses](sql/analyses) usam CTEs, window functions (participação acumulada, comparação com o mesmo mês do ano anterior via `LAG`, rankings com `RANK ... PARTITION BY`, soma acumulada da fila e média móvel de três meses), percentis e agregações filtradas. As consultas de [sql/benchmark](sql/benchmark) calculam médias móveis de 7 e 28 dias sobre a dimensão de data.
+
+`make benchmark` mede três consultas pesadas com `EXPLAIN ANALYZE`, sem e com os índices de [sql/indexes.sql](sql/indexes.sql), e grava os tempos em [docs/sql_optimization.md](docs/sql_optimization.md):
+
+| Consulta | Sem índice | Com índice |
+|---|---|---|
+| Fila em aberto de um bairro, mais antigos primeiro | 35,8 ms | 0,3 ms |
+| Médias móveis de 7 e 28 dias de um serviço | 33,0 ms | 3,0 ms |
+| Chamados por dia e grupo com a chuva do dia | 345,5 ms | 315,4 ms |
+
+O índice parcial só dos chamados em aberto é o que mais ganha (perto de cem vezes). Na terceira consulta, que precisa contar a tabela inteira, índice não ajuda; o que funcionou foi reescrevê-la para agregar antes de juntar com o calendário, o que a deixou cerca de 2,5 vezes mais rápida com o mesmo resultado.
 
 ## Como rodar
 
@@ -92,7 +110,7 @@ cd recife-156
 docker compose up --build
 ```
 
-O Compose sobe o PostgreSQL, roda o pipeline uma vez (baixa os CSVs e o clima, limpa e carrega o banco) e, quando a carga termina, abre o dashboard em `http://localhost:8501`. A primeira execução leva alguns minutos (build da imagem e download de cerca de 40 MB); as seguintes, cerca de um minuto. O banco fica em `localhost:5433` (usuário, senha e banco em [.env.example](.env.example)).
+O Compose sobe o PostgreSQL, roda o pipeline uma vez (ingestão, silver, validações e gold) e, quando a carga termina, abre o dashboard em `http://localhost:8501`. A primeira execução leva alguns minutos (build da imagem e download de cerca de 40 MB); as seguintes, cerca de um minuto, sem novos downloads. O banco fica em `localhost:5433` (usuário, senha e banco em [.env.example](.env.example)).
 
 Os notebooks já estão no repositório com os resultados. Para explorá-los, `make jupyter` abre o JupyterLab em `http://localhost:8888`; para reexecutá-los com o banco carregado, `make notebooks`.
 
@@ -100,20 +118,27 @@ Com `make`:
 
 | Comando | O que faz |
 |---|---|
-| `make pipeline` | Baixa, limpa e carrega os dados no PostgreSQL |
-| `make ingest` | Só baixa os arquivos do portal |
-| `make load` | Limpa os arquivos baixados e carrega o PostgreSQL |
+| `make pipeline` | Roda tudo: ingestão do que mudou, silver, validações e gold |
+| `make refresh` | Igual a `pipeline`, mas baixa e reconstrói todas as camadas do zero |
+| `make ingest` | Só traz para a bronze os arquivos novos ou alterados |
+| `make load` | Monta a silver a partir da bronze, valida e carrega a gold |
+| `make benchmark` | Mede as consultas pesadas com e sem índices |
 | `make dashboard` | Abre o dashboard com os dados já carregados, sem rodar o pipeline |
-| `make notebooks` | Reexecuta os dois notebooks, atualizando resultados e gráficos |
+| `make notebooks` | Reexecuta os notebooks, atualizando resultados e gráficos |
 | `make jupyter` | Abre o JupyterLab com os notebooks |
-| `make test` | Roda os testes (pytest) |
-| `make lint` | Verifica estilo e formatação (ruff) |
+| `make test` / `make lint` | Testes (pytest) / estilo e formatação (ruff) |
 | `make psql` | Abre um terminal SQL no banco |
-| `make down` / `make clean` | Para os containers / apaga também o banco e os arquivos baixados |
+| `make down` / `make clean` | Para os containers / apaga também o banco e todas as camadas de arquivos |
 
 Para mudar o recorte, copie `.env.example` para `.env` e ajuste `YEARS` (por exemplo `YEARS=2024,2025,2026`). Anos anteriores a 2024 usam outra codificação de serviços e são recusados com uma mensagem explicando o motivo.
 
 Todos os comandos rodam dentro de containers, então não é preciso instalar Python. Para rodar fora do Docker, com Python 3.11 ou mais recente: `pip install -e ".[dev,notebooks]"`, suba só o banco com `docker compose up -d db` e use `python -m src.pipeline`.
+
+## Testes e integração contínua
+
+Os testes em [tests](tests) cobrem as regras de limpeza, a deduplicação entre arquivos anuais, a escolha do arquivo no portal, a ingestão incremental (pular o que não mudou, não regravar conteúdo igual), as validações de qualidade, a montagem do esquema estrela e a leitura do clima. Nenhum deles precisa de banco ou internet.
+
+O workflow [.github/workflows/ci.yml](.github/workflows/ci.yml) roda lint, checagem de formatação e testes em todo pull request e em todo push para `main`.
 
 ## Dashboard
 
@@ -133,13 +158,13 @@ Estratégico, para a direção: variação entre anos por grupo, sazonalidade ao
 
 ## Principais achados
 
-Números do recorte padrão (2024 e 2025). O passo a passo está no [notebook 02](notebooks/02_business_analysis.ipynb) e o resumo, em [docs/analises.md](docs/analises.md).
+Números do recorte padrão (2024 e 2025). O passo a passo está nos notebooks [02](notebooks/02_business_analysis.ipynb) e [03](notebooks/03_weather_hypothesis.ipynb) e o resumo, em [docs/analises.md](docs/analises.md).
 
 ![Chamados por grupo de serviço](docs/img/volume_by_group.png)
 
 A demanda é muito concentrada. Iluminação pública responde por 46% dos chamados, e os 10 serviços mais pedidos, de 108, somam 78% do total. Só "lâmpada apagada" representa 35,6% de tudo o que chega ao 156, o que faz dele o primeiro candidato a manutenção preventiva ou a um canal de pedido automatizado (hipótese H1, confirmada).
 
-A velocidade de atendimento depende muito do tipo de serviço. Iluminação tem mediana de 2 dias, com 94% dos chamados atendidos resolvidos em até uma semana. Drenagem tem mediana de 47 dias entre os atendidos, e 13.962 dos 17.988 chamados de drenagem abertos no período (78%) ainda estavam em aberto no fim de 2025, três quartos deles há mais de 180 dias.
+A velocidade de atendimento depende muito do tipo de serviço. Iluminação tem mediana de 2 dias, com 94% dos chamados atendidos resolvidos em até uma semana. Drenagem tem mediana de 47 dias entre os atendidos, e 13.962 dos 17.988 chamados de drenagem abertos no período (78%) ainda estavam em aberto no fim de 2025, três quartos deles há mais de 180 dias. E a fila cresce: entre os chamados abertos desde janeiro de 2024, entrou mais do que saiu em todos os 24 meses, cerca de 1.900 por mês.
 
 ![Mediana de dias até o atendimento por região](docs/img/resolution_by_rpa.png)
 
@@ -157,26 +182,27 @@ A chuva forte aumenta os chamados, mas não explica a fila (hipótese H3, confir
 
 ```
 src/
-  config.py            variáveis de ambiente e caminhos
-  pipeline.py          orquestra as etapas (python -m src.pipeline --step ...)
-  ingestion/ckan.py    descoberta e download dos arquivos pela API CKAN
-  ingestion/weather.py chuva e temperatura diárias pela API do Open-Meteo
-  transform/           limpeza, deduplicação e montagem das tabelas
-  db/load.py           criação do schema e carga com COPY
-  analysis/            padrão visual dos gráficos e cálculo do efeito da chuva
-  dashboard/           leitura dos dados e estilo do dashboard
-app/
-  main.py              navegação do dashboard
-  views/               páginas operacional, gerencial e estratégica
-notebooks/
-  01_data_cleaning.ipynb       problemas encontrados nos dados e como foram tratados
-  02_business_analysis.ipynb   perguntas de negócio, hipóteses e gráficos
-  03_weather_hypothesis.ipynb  efeito da chuva nos chamados
+  config.py              variáveis de ambiente e caminhos das camadas
+  pipeline.py            orquestra ingestão, silver, validações e gold
+  ingestion/             API CKAN e Open-Meteo, com ingestão incremental para a bronze
+  layers/                escrita e leitura de bronze (com manifesto) e silver
+  transform/             regras de limpeza e montagem do esquema estrela
+  quality/checks.py      validações de qualidade da silver
+  db/load.py             carga da gold e registro das execuções
+  benchmark.py           EXPLAIN ANALYZE com e sem índices
+  analysis/              padrão visual dos gráficos e cálculo do efeito da chuva
+  dashboard/             leitura dos dados e estilo do dashboard
+app/                     dashboard Streamlit (navegação e três páginas)
+notebooks/               limpeza, análise de negócio e efeito da chuva
 sql/
-  schema.sql           modelo relacional e view do dashboard
-  analyses/            nove consultas analíticas (CTEs, window functions, percentis)
-tests/                 testes das funções de limpeza e ingestão
-docs/                  resumo das análises, dicionário de dados e gráficos
+  schema.sql             esquema estrela e view do dashboard
+  indexes.sql            índices da tabela fato
+  ops.sql                histórico de execuções e validações
+  analyses/              dez consultas analíticas
+  benchmark/             consultas usadas no benchmark de otimização
+tests/                   testes de limpeza, ingestão, qualidade e modelagem
+docs/                    arquitetura, ADRs, otimização, dicionário de dados, resumo e gráficos
+.github/workflows/       integração contínua
 ```
 
 ## Decisões e limitações
@@ -184,14 +210,14 @@ docs/                  resumo das análises, dicionário de dados e gráficos
 - Sem identificador de chamado nos dados abertos, o mesmo chamado em anos diferentes é reconhecido por serviço, endereço, bairro e data de abertura. A regra é uma aproximação: dois pedidos iguais no mesmo dia e endereço viram dois chamados.
 - A situação de cada chamado é a do fim do último ano carregado. Tempo de resolução só existe para chamados atendidos, então as medianas subestimam a espera em serviços com fila grande, como drenagem.
 - A data de atendimento é a data da última mudança de situação, que depende de como cada equipe registra o andamento.
-- A carga é uma atualização completa (o schema é recriado a cada execução), simples e suficiente para cerca de 200 mil linhas.
+- A ingestão é incremental, mas silver e gold são recalculadas por completo a cada execução: sem identificador estável de chamado, uma carga incremental da gold poderia mudar a identidade dos chamados entre execuções. Para cerca de 200 mil linhas isso leva menos de um minuto.
 - Pouco mais da metade das linhas não tem coordenadas, então as análises usam bairro e RPA em vez de pontos no mapa.
 - A chuva vem de um único ponto do modelo em grade do Open-Meteo, que subestima volumes e suaviza temporais. Ela serve para separar dias mais e menos chuvosos; dados de pluviômetro por bairro dariam um teste mais forte.
 - O dashboard mostra a situação na data mais recente dos dados abertos (31/12/2025), não em tempo real.
 
 ## Tecnologias
 
-Python 3.12, pandas, requests, SQLAlchemy e psycopg 3, PostgreSQL 16, Streamlit, Plotly, SciPy, Jupyter, matplotlib, pytest, ruff, Docker Compose e Make.
+Python 3.12, pandas, pyarrow (Parquet), requests, SQLAlchemy e psycopg 3, PostgreSQL 16, Streamlit, Plotly, SciPy, Jupyter, matplotlib, pytest, ruff, GitHub Actions, Docker Compose e Make.
 
 ## Licença
 

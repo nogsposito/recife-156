@@ -20,9 +20,9 @@
 | Período | do primeiro ao último dia de abertura dos chamados carregados |
 | Formato | JSON com uma lista por variável (`daily.time`, `daily.precipitation_sum` etc.), guardado em `data/raw/weather_<início>_<fim>.json` |
 
-| Variável da API | Coluna em `daily_weather` | Unidade |
+| Variável da API | Coluna na silver e em `dim_date` | Unidade |
 |---|---|---|
-| `time` | `weather_date` | data |
+| `time` | `weather_date` (silver), `date_key` (gold) | data |
 | `precipitation_sum` | `precipitation_mm` | mm no dia |
 | `temperature_2m_max` | `temp_max_c` | °C |
 | `temperature_2m_min` | `temp_min_c` | °C |
@@ -79,31 +79,55 @@ Os arquivos até 2023 seguem outro padrão: códigos de grupo e serviço numerad
 | Chamados abertos antes do recorte | Descartados | `combine_snapshots` |
 | Bairro com mais de uma RPA | Fica com a RPA mais frequente | `build_tables` |
 
-## Modelo relacional (PostgreSQL)
+## Camadas de arquivos
 
-Definido em [sql/schema.sql](../sql/schema.sql) e recriado a cada carga.
+| Camada | Caminho | Conteúdo |
+|---|---|---|
+| Landing | `data/raw/156_<ano>.csv`, `data/raw/weather_<início>_<fim>.json` | Arquivos exatamente como baixados |
+| Bronze | `data/bronze/tickets/year=<ano>/data.parquet` | As 13 colunas originais como texto, mais `_source` (URL de origem) e `_ingested_at` |
+| Bronze | `data/bronze/weather/year=<ano>/data.parquet` | As listas da API (`time`, `precipitation_sum` etc.), mais `_source` e `_ingested_at` |
+| Bronze | `data/bronze/_manifest.json` | Por arquivo: recurso do portal, versão publicada, hash SHA-256, linhas e data de ingestão; para o clima, o intervalo de datas já baixado |
+| Silver | `data/silver/tickets.parquet` | Chamados limpos e deduplicados, com as colunas limpas da tabela acima e `source_year` |
+| Silver | `data/silver/daily_weather.parquet` | `weather_date`, `precipitation_mm`, `temp_max_c`, `temp_min_c`, `temp_mean_c` |
+
+## Camada gold (PostgreSQL)
+
+Esquema estrela definido em [sql/schema.sql](../sql/schema.sql) e recriado a cada carga, com os índices de [sql/indexes.sql](../sql/indexes.sql).
 
 | Tabela | Coluna | Tipo | Descrição |
 |---|---|---|---|
-| `service_groups` | `group_code` | integer, PK | Código do grupo |
-| | `group_name` | text | Nome do grupo |
-| `services` | `service_code` | integer, PK | Código do serviço |
-| | `service_name` | text | Nome do serviço |
-| | `group_code` | integer, FK | Grupo ao qual o serviço pertence |
-| `neighborhoods` | `neighborhood_id` | integer, PK | Identificador do bairro |
+| `dim_service` | `service_code` | integer, PK | Código do serviço |
+| | `service_name` | text | Nome do serviço (o do arquivo anual mais recente) |
+| | `group_code`, `group_name` | integer, text | Grupo ao qual o serviço pertence |
+| `dim_neighborhood` | `neighborhood_id` | integer, PK | Identificador do bairro |
 | | `neighborhood_name` | text, único | Nome padronizado |
-| | `rpa` | smallint (1 a 6) | Região Político-Administrativa |
-| `tickets` | `ticket_id` | bigint, PK | Identificador gerado na carga |
+| | `rpa` | smallint (1 a 6) | Região Político-Administrativa mais frequente do bairro |
+| `dim_date` | `date_key` | date, PK | Dia do calendário (anos inteiros do recorte) |
+| | `year`, `month` | smallint | Ano e mês |
+| | `day_of_week` | smallint (1 a 7) | Dia da semana ISO, 1 = segunda |
+| | `is_weekend` | boolean | Sábado ou domingo |
+| | `precipitation_mm` | real | Chuva do dia (mm, Open-Meteo) |
+| | `temp_max_c`, `temp_min_c`, `temp_mean_c` | real | Temperaturas do dia (°C) |
+| `fact_tickets` | `ticket_id` | bigint, PK | Identificador gerado na carga |
 | | `service_code` | integer, FK | Serviço pedido |
 | | `neighborhood_id` | integer, FK | Bairro (nulo quando não informado) |
-| | `street`, `street_number` | text | Endereço |
-| | `opened_on` | date | Data de abertura |
+| | `opened_on` | date, FK | Data de abertura, ligada a `dim_date` |
 | | `status` | text | Última situação conhecida |
 | | `status_updated_on` | date | Data da última mudança de situação |
-| | `days_to_last_update` | integer, gerada | `status_updated_on - opened_on`; para chamados `ATENDIDA` é o tempo de resolução |
+| | `is_open` | boolean, gerada | `status <> 'ATENDIDA'` |
+| | `days_to_last_update` | integer, gerada | `status_updated_on - opened_on`; para chamados atendidos é o tempo de resolução |
+| | `street`, `street_number` | text | Endereço |
 | | `latitude`, `longitude` | double precision | Coordenadas válidas ou nulas |
 | | `source_year` | smallint | Arquivo anual de onde veio a versão mais recente |
-| `daily_weather` | `weather_date` | date, PK | Dia; `tickets.opened_on` referencia esta coluna |
-| | `precipitation_mm` | real | Chuva do dia (mm) |
-| | `temp_max_c`, `temp_min_c`, `temp_mean_c` | real | Temperaturas do dia (°C) |
 | `v_tickets` (view) | | | Chamado com serviço, grupo, bairro, RPA e `is_open`, usada pelo dashboard |
+
+## Metadados de execução (schema `ops`)
+
+| Tabela | Coluna | Descrição |
+|---|---|---|
+| `ops.pipeline_runs` | `run_id`, `started_at`, `finished_at` | Identificação e duração da execução |
+| | `status` | `running`, `success` ou `failed` |
+| | `years`, `changed_inputs` | Recorte e o que mudou na ingestão (`none` quando nada mudou) |
+| | `silver_rows`, `gold_rows`, `message` | Linhas processadas e mensagem de erro, se houver |
+| `ops.quality_checks` | `run_id`, `check_name` | Execução e validação |
+| | `severity`, `passed`, `details` | `error` ou `warning`, resultado e resumo do que foi encontrado |

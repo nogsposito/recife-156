@@ -1,11 +1,10 @@
 -- title: Concentração da demanda por serviço
 -- question: Quantos serviços respondem pela maior parte dos chamados?
 WITH service_volume AS (
-    SELECT s.service_name, g.group_name, COUNT(*) AS tickets
-    FROM tickets AS t
-    JOIN services AS s USING (service_code)
-    JOIN service_groups AS g USING (group_code)
-    GROUP BY s.service_name, g.group_name
+    SELECT s.service_name, s.group_name, COUNT(*) AS tickets
+    FROM fact_tickets AS t
+    JOIN dim_service AS s USING (service_code)
+    GROUP BY s.service_name, s.group_name
 )
 SELECT
     ROW_NUMBER() OVER (ORDER BY tickets DESC) AS position,

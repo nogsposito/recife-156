@@ -2,14 +2,13 @@
 -- question: Quanto da fila está parada há muito tempo, e em quais serviços?
 -- Age is measured up to the most recent date in the data (the snapshot date).
 WITH snapshot AS (
-    SELECT MAX(status_updated_on) AS reference_date FROM tickets
+    SELECT MAX(status_updated_on) AS reference_date FROM fact_tickets
 ),
 open_tickets AS (
-    SELECT g.group_name, snapshot.reference_date - t.opened_on AS age_days
-    FROM tickets AS t
+    SELECT s.group_name, snapshot.reference_date - t.opened_on AS age_days
+    FROM fact_tickets AS t
     CROSS JOIN snapshot
-    JOIN services AS s USING (service_code)
-    JOIN service_groups AS g USING (group_code)
+    JOIN dim_service AS s USING (service_code)
     WHERE t.status <> 'ATENDIDA'
 )
 SELECT

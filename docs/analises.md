@@ -12,7 +12,7 @@ Em uma frase: o 156 recebe sobretudo pedidos de iluminação, que são atendidos
 
 3. Em drenagem e arborização, a região também pesa. No mesmo serviço (limpeza de galerias e valetas), as RPAs 4, 5 e 6 esperam de 155 a 197 dias, contra 35 a 69 nas RPAs 1 a 3. Isso aponta para capacidade ou contrato regional, e não para o tipo de pedido. Em iluminação e limpeza urbana o tempo é parecido em toda a cidade.
 
-4. A fila parada está em drenagem e arborização. 78% dos pedidos de drenagem do período seguiam em aberto no fim de 2025 (13.962 chamados), três quartos deles há mais de 180 dias; arborização tem 11.639 em aberto. Parte disso pode ser chamado resolvido sem baixa no sistema, e uma revisão da fila antiga separaria pendência real de falha de registro.
+4. A fila parada está em drenagem e arborização. 78% dos pedidos de drenagem do período seguiam em aberto no fim de 2025 (13.962 chamados), três quartos deles há mais de 180 dias; arborização tem 11.639 em aberto. E a fila cresce: entre os chamados abertos desde janeiro de 2024, entrou mais do que saiu em todos os 24 meses, cerca de 1.900 por mês. Parte disso pode ser chamado resolvido sem baixa no sistema, e uma revisão da fila antiga separaria pendência real de falha de registro.
 
 5. A demanda cresceu 5,8% em 2025, concentrada de julho a outubro (15% a 30% acima de 2024). Dias úteis recebem cerca de 3,5 vezes mais chamados por dia que sábados e domingos.
 

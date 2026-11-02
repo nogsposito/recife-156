@@ -4,6 +4,8 @@ from pathlib import Path
 import requests
 
 from src.config import RAW_DIR
+from src.layers.bronze import file_sha256, now_utc, tickets_path, write_bronze
+from src.transform.cleaning import read_raw_csv
 
 log = logging.getLogger(__name__)
 
@@ -69,3 +71,49 @@ def ingest(years: list[int], force: bool = False) -> list[Path]:
         log.info("%s: downloading resource %s", year, resource["id"])
         download_file(resource["url"], path)
     return paths
+
+
+# Brings each year's CSV into bronze. A year is skipped when the portal still lists the same
+# version already ingested, and also when a new version has exactly the same content.
+def ingest_tickets(years: list[int], manifest: dict, force: bool = False) -> list[int]:
+    try:
+        available = pick_latest_per_year(fetch_resources())
+    except requests.RequestException as error:
+        if not force and all(tickets_path(year).exists() for year in years):
+            log.warning("Portal unreachable (%s); keeping the current bronze files", error)
+            return []
+        raise
+    missing = [year for year in years if year not in available]
+    if missing:
+        raise ValueError(f"Years not available on the portal: {missing}")
+
+    changed = []
+    for year in years:
+        resource, key = available[year], f"tickets/{year}"
+        saved = manifest.get(key, {})
+        version = _modified_at(resource)
+        same_version = (
+            saved.get("resource_id") == resource["id"] and saved.get("version") == version
+        )
+        if same_version and tickets_path(year).exists() and not force:
+            log.info("%s: unchanged on the portal, bronze kept", year)
+            continue
+
+        landing = raw_path(year)
+        download_file(resource["url"], landing)
+        sha256 = file_sha256(landing)
+        if saved.get("sha256") == sha256 and tickets_path(year).exists() and not force:
+            log.info("%s: new version on the portal with identical content", year)
+            rows = saved["rows"]
+        else:
+            rows = write_bronze(read_raw_csv(landing), tickets_path(year), resource["url"])
+            log.info("%s: %d rows written to bronze", year, rows)
+            changed.append(year)
+        manifest[key] = {
+            "resource_id": resource["id"],
+            "version": version,
+            "sha256": sha256,
+            "rows": rows,
+            "ingested_at": now_utc(),
+        }
+    return changed
