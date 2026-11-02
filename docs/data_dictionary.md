@@ -11,7 +11,26 @@
 | Granularidade | um chamado por linha, com a última situação conhecida |
 | Anos usados por padrão | 2024 e 2025 (configurável pela variável `YEARS`, a partir de 2024) |
 
-## Schema real dos arquivos (2024 em diante)
+## Clima: Open-Meteo
+
+| Item | Valor |
+|---|---|
+| Fonte | [API histórica do Open-Meteo](https://open-meteo.com/en/docs/historical-weather-api), licença CC BY 4.0 |
+| Ponto | latitude -8,05 e longitude -34,90 (centro do Recife), ajustado pela API ao ponto mais próximo da grade |
+| Período | do primeiro ao último dia de abertura dos chamados carregados |
+| Formato | JSON com uma lista por variável (`daily.time`, `daily.precipitation_sum` etc.), guardado em `data/raw/weather_<início>_<fim>.json` |
+
+| Variável da API | Coluna em `daily_weather` | Unidade |
+|---|---|---|
+| `time` | `weather_date` | data |
+| `precipitation_sum` | `precipitation_mm` | mm no dia |
+| `temperature_2m_max` | `temp_max_c` | °C |
+| `temperature_2m_min` | `temp_min_c` | °C |
+| `temperature_2m_mean` | `temp_mean_c` | °C |
+
+Os valores vêm de reanálise em grade, não de pluviômetro. Em 2024 a chuva somada é de cerca de 1.230 mm, abaixo da média histórica da cidade, então o dado é usado de forma relativa (dias mais e menos chuvosos).
+
+## Schema real dos arquivos do 156 (2024 em diante)
 
 Os CSVs usam `;` como separador e têm 13 colunas, todas lidas como texto e tipadas na limpeza. Os percentuais de vazios foram medidos nos arquivos de 2024 (108.082 linhas) e 2025 (114.653 linhas).
 
@@ -84,3 +103,7 @@ Definido em [sql/schema.sql](../sql/schema.sql) e recriado a cada carga.
 | | `days_to_last_update` | integer, gerada | `status_updated_on - opened_on`; para chamados `ATENDIDA` é o tempo de resolução |
 | | `latitude`, `longitude` | double precision | Coordenadas válidas ou nulas |
 | | `source_year` | smallint | Arquivo anual de onde veio a versão mais recente |
+| `daily_weather` | `weather_date` | date, PK | Dia; `tickets.opened_on` referencia esta coluna |
+| | `precipitation_mm` | real | Chuva do dia (mm) |
+| | `temp_max_c`, `temp_min_c`, `temp_mean_c` | real | Temperaturas do dia (°C) |
+| `v_tickets` (view) | | | Chamado com serviço, grupo, bairro, RPA e `is_open`, usada pelo dashboard |
