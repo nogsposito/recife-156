@@ -119,3 +119,28 @@ def plot_resolution_heatmap(resolution: pd.DataFrame, path: Path) -> None:
         spine.set_visible(False)
     ax.set_title("Mediana de dias até o atendimento, por região (RPA)")
     _save(fig, path)
+
+
+# Rain and tickets in two stacked panels sharing the month axis, instead of a dual-axis chart
+def plot_rain_and_tickets(
+    monthly: pd.DataFrame, path: Path, tickets_label: str = "Drenagem"
+) -> None:
+    fig, (rain_ax, tickets_ax) = plt.subplots(2, 1, figsize=(9, 5), sharex=True)
+    months = monthly.index
+    rain_ax.bar(months, monthly["rain_mm"], width=20, color=SERIES_COLORS[0])
+    rain_ax.set_title("Chuva no mês (mm, Open-Meteo)")
+    tickets_ax.plot(months, monthly.iloc[:, 1], color=SERIES_COLORS[1], linewidth=2)
+    tickets_ax.set_ylim(bottom=0)
+    tickets_ax.set_title(f"Chamados de {tickets_label.lower()} abertos no mês")
+    for ax in (rain_ax, tickets_ax):
+        ax.grid(axis="y", color=GRID, linewidth=0.8)
+        ax.spines["left"].set_visible(False)
+        ax.tick_params(axis="y", length=0)
+        ax.yaxis.set_major_formatter(lambda value, _: format_number(value))
+    tickets_ax.xaxis.set_major_formatter(
+        lambda value, _: (
+            MONTH_LABELS[plt.matplotlib.dates.num2date(value).month - 1]
+            + plt.matplotlib.dates.num2date(value).strftime("/%y")
+        )
+    )
+    _save(fig, path)
