@@ -56,9 +56,11 @@ def clean_neighborhood(series: pd.Series) -> pd.Series:
     return normalized.where(~normalized.isin(UNKNOWN_NEIGHBORHOODS))
 
 
+# "SN", "S/N", "0" and "00" all mean the address has no number
 def clean_street_number(series: pd.Series) -> pd.Series:
     normalized = normalize_text(series)
-    return normalized.where(~normalized.isin(NO_STREET_NUMBER))
+    no_number = normalized.isin(NO_STREET_NUMBER) | normalized.str.fullmatch(r"0+", na=False)
+    return normalized.where(~no_number)
 
 
 def clean_coordinates(latitude: pd.Series, longitude: pd.Series) -> tuple[pd.Series, pd.Series]:
@@ -81,6 +83,10 @@ def clean_tickets(raw: pd.DataFrame, source_year: int) -> pd.DataFrame:
     df = raw.rename(columns=lambda name: COLUMNS.get(name.strip().upper(), name))
     df = df[list(COLUMNS.values())].apply(lambda column: column.str.strip())
     df = df.mask(df == "")
+    # Rows identical in the raw file are export duplicates. Rows that only become equal after
+    # standardization (e.g. number "SN" vs "00") were typed separately and stay as two tickets.
+    raw_duplicates = df.duplicated()
+    df = df[~raw_duplicates]
 
     rpa = _to_int(df["rpa"])
     latitude, longitude = clean_coordinates(df["latitude"], df["longitude"])
@@ -104,15 +110,14 @@ def clean_tickets(raw: pd.DataFrame, source_year: int) -> pd.DataFrame:
     )
 
     valid = clean.dropna(subset=["group_code", "service_code", "opened_on", "status"])
-    deduplicated = valid.drop_duplicates()
     log.info(
-        "%s: %d rows, %d without required fields, %d exact duplicates",
+        "%s: %d rows, %d exact duplicates, %d without required fields",
         source_year,
-        len(clean),
+        len(raw),
+        raw_duplicates.sum(),
         len(clean) - len(valid),
-        len(valid) - len(deduplicated),
     )
-    return deduplicated
+    return valid
 
 
 # Keeps only the latest snapshot of each ticket. Rows sharing the same key inside one file
