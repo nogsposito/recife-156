@@ -26,6 +26,8 @@ flowchart LR
     G --> M[Modelo<br/>src/ml]
     M --> D[Dashboard]
     G --> D
+    G -->|só leitura| AI[Assistente<br/>src/ai]
+    AI --> D
 ```
 
 | Camada | Onde | Formato | O que contém | Quem escreve |
@@ -48,6 +50,10 @@ flowchart LR
 6. Fecha o registro da execução com sucesso ou falha.
 
 No `docker compose up`, depois do pipeline roda `python -m src.ml.train`: lê a gold, monta as features, treina com validação temporal, salva o modelo em `models/` e atualiza `docs/ml_results.md`. O dashboard carrega esse arquivo na página de previsões.
+
+A carga da gold também cria o usuário `assistant_readonly` e reaplica as permissões dele (só `SELECT` nas tabelas da gold e na view, transação somente leitura, 10 segundos por consulta), já que as tabelas são recriadas a cada execução. O assistente do dashboard conecta com esse usuário e valida cada consulta antes de executá-la.
+
+O NLP das descrições de serviço (`make nlp`) fica fora do fluxo automático: ele baixa os arquivos de 2012 a 2023 e o modelo de embeddings, e só precisa rodar de novo quando a taxonomia mudar.
 
 Rodar duas vezes seguidas não baixa nada na segunda vez e produz a mesma gold. `make refresh` ignora o manifesto e refaz tudo.
 

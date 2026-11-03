@@ -26,6 +26,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-recife}:${POSTGRES_PASSWORD:-recife}@db:5432/${POSTGRES_DB:-recife156}
       YEARS: ${YEARS:-2024,2025}
+      ASSISTANT_DB_PASSWORD: ${ASSISTANT_DB_PASSWORD:-assistant}
     volumes:
       - .:/app
 
@@ -39,6 +40,9 @@ services:
         condition: service_completed_successfully
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-recife}:${POSTGRES_PASSWORD:-recife}@db:5432/${POSTGRES_DB:-recife156}
+      ASSISTANT_DATABASE_URL: postgresql+psycopg://assistant_readonly:${ASSISTANT_DB_PASSWORD:-assistant}@db:5432/${POSTGRES_DB:-recife156}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-5-5}
     ports:
       - "${DASHBOARD_PORT:-8501}:8501"
     volumes:

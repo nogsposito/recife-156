@@ -2,9 +2,10 @@ import io
 import logging
 
 import pandas as pd
+from psycopg import sql as psql
 from sqlalchemy import Engine, create_engine, text
 
-from src.config import DATABASE_URL, SQL_DIR
+from src.config import ASSISTANT_DB_PASSWORD, DATABASE_URL, SQL_DIR
 
 log = logging.getLogger(__name__)
 
@@ -36,7 +37,22 @@ def load_gold(engine: Engine, tables: dict[str, pd.DataFrame]) -> None:
             copy_dataframe(cursor, table, df)
             log.info("Gold: %d rows loaded into %s", len(df), table)
         cursor.execute(_sql("indexes.sql"))
+        grant_assistant_access(cursor)
         cursor.execute("ANALYZE")
+
+
+# The assistant connects as this role, which can only read the gold tables
+def grant_assistant_access(cursor) -> None:
+    cursor.execute(
+        "DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'assistant_readonly') "
+        "THEN CREATE ROLE assistant_readonly LOGIN; END IF; END $$"
+    )
+    cursor.execute(
+        psql.SQL("ALTER ROLE assistant_readonly WITH LOGIN PASSWORD {}").format(
+            psql.Literal(ASSISTANT_DB_PASSWORD)
+        )
+    )
+    cursor.execute(_sql("readonly_grants.sql"))
 
 
 def start_run(engine: Engine, years: list[int], changed_inputs: str) -> int:

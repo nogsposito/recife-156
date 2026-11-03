@@ -9,6 +9,7 @@ pages = [
     st.Page("views/managerial.py", title="Gerencial", icon=":material/monitoring:"),
     st.Page("views/strategic.py", title="Estratégico", icon=":material/insights:"),
     st.Page("views/predictions.py", title="Previsões", icon=":material/online_prediction:"),
+    st.Page("views/assistant.py", title="Pergunte aos dados", icon=":material/chat:"),
 ]
 page = st.navigation(pages)
 

@@ -1,6 +1,6 @@
 # O que descobrimos nos chamados do 156
 
-Resumo dos notebooks [01_data_cleaning](../notebooks/01_data_cleaning.ipynb) (como os dados foram entendidos e tratados) [02_business_analysis](../notebooks/02_business_analysis.ipynb) (as perguntas de negócio, com as consultas e os gráficos) [03_weather_hypothesis](../notebooks/03_weather_hypothesis.ipynb) (o efeito da chuva) e [04_resolution_model](../notebooks/04_resolution_model.ipynb) (o modelo que prevê o atendimento em 30 dias). Recorte: 204.408 chamados abertos em 2024 e 2025, com a situação conhecida até 31/12/2025.
+Resumo dos notebooks [01_data_cleaning](../notebooks/01_data_cleaning.ipynb) (como os dados foram entendidos e tratados) [02_business_analysis](../notebooks/02_business_analysis.ipynb) (as perguntas de negócio, com as consultas e os gráficos) [03_weather_hypothesis](../notebooks/03_weather_hypothesis.ipynb) (o efeito da chuva) [04_resolution_model](../notebooks/04_resolution_model.ipynb) (o modelo que prevê o atendimento em 30 dias) e [05_service_text](../notebooks/05_service_text.ipynb) (as descrições de serviço de 14 anos). Recorte: 204.408 chamados abertos em 2024 e 2025, com a situação conhecida até 31/12/2025.
 
 Em uma frase: o 156 recebe sobretudo pedidos de iluminação, que são atendidos em poucos dias; o problema está em drenagem e arborização, onde a espera depende da região da cidade, a fila em aberto é grande e antiga e a chuva forte empurra a demanda para cima.
 
@@ -19,6 +19,8 @@ Em uma frase: o 156 recebe sobretudo pedidos de iluminação, que são atendidos
 6. Chuva forte aumenta a demanda, mas não explica a fila. Nos 75 dias mais chuvosos, drenagem ficou 13% acima do normal para aquele mês e dia da semana e arborização, 20%; limpeza urbana não subiu. A previsão do tempo serve de gatilho para reforçar drenagem e poda depois de temporais, mas o ganho é de poucos chamados por dia (cerca de 3 em drenagem e 6 em arborização).
 
 7. Dá para prever na abertura quem vai atrasar, e o serviço é quase tudo. A taxa histórica de cada serviço já separa muito bem os chamados atendidos em até 30 dias dos que não são (AUC 0,954). Um modelo que acrescenta bairro e demanda recente melhora pouco no geral (AUC 0,960), mas acerta mais quando alerta um atraso (89% contra 83%) e reduz o erro em 38% em arborização e 25% em drenagem, os serviços em que a região pesa. Esse alerta alimenta a página Previsões do dashboard.
+
+8. Dá para recuperar 12 anos de histórico com um de-para semiautomático. As descrições de serviço antigas (2012 a 2023) usam outra taxonomia e perderam os acentos. Um classificador de n-gramas de caracteres põe no grupo certo descrições que somam 97% dos chamados antigos, e a busca por embeddings, depois de restaurar as palavras quebradas, sugere o serviço equivalente com acerto total acima de 0,9 de similaridade. Basta revisar à mão as cerca de 50 descrições restantes para estender as análises de 2 para 14 anos.
 
 ![Mediana de dias até o atendimento por região](img/resolution_by_rpa.png)
 

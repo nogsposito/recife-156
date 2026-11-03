@@ -10,6 +10,9 @@ SILVER_DIR = DATA_DIR / "silver"
 SQL_DIR = PROJECT_ROOT / "sql"
 DOCS_DIR = PROJECT_ROOT / "docs"
 
+# Password of the read-only database user created for the text-to-SQL assistant
+ASSISTANT_DB_PASSWORD = os.getenv("ASSISTANT_DB_PASSWORD", "assistant")
+
 DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql+psycopg://recife:recife@localhost:5433/recife156"
 )

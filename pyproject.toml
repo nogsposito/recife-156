@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [
+    "anthropic",
     "pandas>=2.2",
     "requests>=2.32",
     "sqlalchemy>=2.0",
@@ -15,12 +16,14 @@ dependencies = [
     "pyarrow>=17",
     "scikit-learn>=1.5",
     "scipy>=1.14",
+    "sqlglot>=25",
     "streamlit>=1.40",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.6"]
 notebooks = ["jupyterlab>=4.2", "ipykernel>=6.29"]
+nlp = ["sentence-transformers>=3.0"]
 
 [build-system]
 requires = ["setuptools>=68"]
