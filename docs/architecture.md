@@ -22,6 +22,7 @@ flowchart LR
     W --> L
     L --> B --> S --> Q --> G
     Q -.-> O
+    B --> MG[(MongoDB<br/>documentos brutos)]
     G --> N[Notebooks]
     G --> M[Modelo<br/>src/ml]
     M --> D[Dashboard]
@@ -36,6 +37,7 @@ flowchart LR
 | Bronze | `data/bronze/tickets/year=AAAA`, `data/bronze/weather/year=AAAA` | Parquet | Mesmo conteúdo, sem correções, mais `_source` e `_ingested_at` | `src/ingestion` com `src/layers/bronze.py` |
 | Silver | `data/silver` | Parquet | Chamados limpos e deduplicados, clima tipado | `src/layers/silver.py` |
 | Gold | PostgreSQL, schema `public` | Tabelas | Fato e dimensões, view do dashboard, índices | `src/transform/modeling.py`, `src/db/load.py` |
+| Bruto em documentos | MongoDB, banco `recife156_raw` | Documentos | Cada linha dos arquivos anuais como chegou e cada resposta da API do clima inteira | `src/nosql/raw_store.py` |
 | Ops | PostgreSQL, schema `ops` | Tabelas | Histórico de execuções e de validações | `src/db/load.py` |
 
 ## Uma execução do pipeline
@@ -49,7 +51,7 @@ flowchart LR
 5. Gold: recria o esquema estrela, carrega com `COPY` e cria os índices, tudo em uma transação.
 6. Fecha o registro da execução com sucesso ou falha.
 
-No `docker compose up`, depois do pipeline roda `python -m src.ml.train`: lê a gold, monta as features, treina com validação temporal, salva o modelo em `models/` e atualiza `docs/ml_results.md`. O dashboard carrega esse arquivo na página de previsões.
+No `docker compose up`, depois do pipeline roda `python -m src.ml.train`: lê a gold, monta as features, treina com validação temporal, salva o modelo em `models/` e atualiza `docs/ml_results.md`. O dashboard carrega esse arquivo na página de previsões. Em seguida, `python -m src.nosql.raw_store` carrega os documentos brutos no MongoDB, só para os anos cujo arquivo mudou segundo o manifesto, e atualiza as agregações de `docs/mongo_results.md`.
 
 A carga da gold também cria o usuário `assistant_readonly` e reaplica as permissões dele (só `SELECT` nas tabelas da gold e na view, transação somente leitura, 10 segundos por consulta), já que as tabelas são recriadas a cada execução. O assistente do dashboard conecta com esse usuário e valida cada consulta antes de executá-la.
 
