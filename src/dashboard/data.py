@@ -28,6 +28,13 @@ def load_tickets() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=3600)
+def load_rain() -> pd.DataFrame:
+    rain = _read("SELECT date_key, precipitation_mm FROM dim_date")
+    rain["date_key"] = pd.to_datetime(rain["date_key"])
+    return rain
+
+
+@st.cache_data(ttl=3600)
 def load_daily_tickets_and_rain() -> pd.DataFrame:
     sql = (SQL_DIR / "analyses" / "09_daily_tickets_and_rain.sql").read_text(encoding="utf-8")
     return _read(sql)

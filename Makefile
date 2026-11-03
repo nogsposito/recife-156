@@ -3,7 +3,7 @@ RUN = $(COMPOSE) run --rm pipeline
 RUN_NO_DB = $(COMPOSE) run --rm --no-deps pipeline
 
 .DEFAULT_GOAL := help
-.PHONY: help build db pipeline refresh ingest load benchmark dashboard notebooks jupyter test lint format psql down clean
+.PHONY: help build db pipeline refresh ingest load train benchmark dashboard notebooks jupyter test lint format psql down clean
 
 help: ## Show available targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-10s %s\n", $$1, $$2}'
@@ -25,6 +25,9 @@ ingest: ## Bring new or changed source files into the bronze layer
 
 load: ## Build silver from bronze, run the quality checks and load the gold tables
 	$(RUN) python -m src.pipeline --step load
+
+train: ## Train the 30-day resolution model and write docs/ml_results.md
+	$(RUN) python -m src.ml.train
 
 benchmark: ## Time the heavy queries with and without indexes (docs/sql_optimization.md)
 	$(RUN) python -m src.benchmark

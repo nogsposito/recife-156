@@ -23,7 +23,9 @@ flowchart LR
     L --> B --> S --> Q --> G
     Q -.-> O
     G --> N[Notebooks]
-    G --> D[Dashboard]
+    G --> M[Modelo<br/>src/ml]
+    M --> D[Dashboard]
+    G --> D
 ```
 
 | Camada | Onde | Formato | O que contém | Quem escreve |
@@ -44,6 +46,8 @@ flowchart LR
 4. Qualidade: roda as validações de `src/quality/checks.py` e grava cada resultado em `ops.quality_checks`. Uma falha de nível "error" interrompe a execução antes da gold.
 5. Gold: recria o esquema estrela, carrega com `COPY` e cria os índices, tudo em uma transação.
 6. Fecha o registro da execução com sucesso ou falha.
+
+No `docker compose up`, depois do pipeline roda `python -m src.ml.train`: lê a gold, monta as features, treina com validação temporal, salva o modelo em `models/` e atualiza `docs/ml_results.md`. O dashboard carrega esse arquivo na página de previsões.
 
 Rodar duas vezes seguidas não baixa nada na segunda vez e produz a mesma gold. `make refresh` ignora o manifesto e refaz tudo.
 
