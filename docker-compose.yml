@@ -15,18 +15,34 @@ services:
       timeout: 3s
       retries: 10
 
-  # Runs the data pipeline and trains the model once, then exits
+  # Raw documents: ticket rows as published and the weather API answers, untouched
+  mongo:
+    image: mongo:7
+    ports:
+      - "${MONGO_PORT:-27018}:27017"
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Runs the data pipeline, trains the model and loads the raw documents once, then exits
   pipeline:
     build: .
     image: recife-156
-    command: sh -c "python -m src.pipeline && python -m src.ml.train"
+    command: sh -c "python -m src.pipeline && python -m src.ml.train && python -m src.nosql.raw_store"
     depends_on:
       db:
+        condition: service_healthy
+      mongo:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-recife}:${POSTGRES_PASSWORD:-recife}@db:5432/${POSTGRES_DB:-recife156}
       YEARS: ${YEARS:-2024,2025}
       ASSISTANT_DB_PASSWORD: ${ASSISTANT_DB_PASSWORD:-assistant}
+      MONGO_URL: mongodb://mongo:27017
     volumes:
       - .:/app
 
@@ -50,3 +66,4 @@ services:
 
 volumes:
   pgdata:
+  mongodata:

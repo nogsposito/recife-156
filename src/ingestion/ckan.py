@@ -4,6 +4,7 @@ from pathlib import Path
 import requests
 
 from src.config import RAW_DIR
+from src.ingestion.http import HTTP, TIMEOUT
 from src.layers.bronze import file_sha256, now_utc, tickets_path, write_bronze
 from src.transform.cleaning import read_raw_csv
 
@@ -14,7 +15,7 @@ DATASET_ID = "central-de-atendimento-de-servicos-da-emlurb-156"
 
 
 def fetch_resources() -> list[dict]:
-    response = requests.get(CKAN_PACKAGE_URL, params={"id": DATASET_ID}, timeout=30)
+    response = HTTP.get(CKAN_PACKAGE_URL, params={"id": DATASET_ID}, timeout=TIMEOUT)
     response.raise_for_status()
     return response.json()["result"]["resources"]
 
@@ -39,7 +40,7 @@ def pick_latest_per_year(resources: list[dict]) -> dict[int, dict]:
 def download_file(url: str, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = destination.with_suffix(".part")
-    with requests.get(url, stream=True, timeout=120) as response:
+    with HTTP.get(url, stream=True, timeout=TIMEOUT) as response:
         response.raise_for_status()
         with open(tmp_path, "wb") as file:
             for chunk in response.iter_content(chunk_size=1 << 20):
