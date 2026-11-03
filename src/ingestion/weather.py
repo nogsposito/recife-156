@@ -4,9 +4,9 @@ from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
-import requests
 
 from src.config import RAW_DIR
+from src.ingestion.http import HTTP, TIMEOUT
 from src.layers.bronze import now_utc, weather_path, write_bronze
 
 log = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ def fetch_daily_weather(start: date, end: date, force: bool = False) -> dict:
         "timezone": "America/Recife",
     }
     log.info("Weather: downloading %s to %s from Open-Meteo", start, end)
-    response = requests.get(ARCHIVE_URL, params=params, timeout=60)
+    response = HTTP.get(ARCHIVE_URL, params=params, timeout=TIMEOUT)
     response.raise_for_status()
     payload = response.json()
 
