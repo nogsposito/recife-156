@@ -182,48 +182,6 @@ Cada página responde às perguntas de um público e tem filtros por grupo de se
 
 Mais capturas: [gerencial](docs/img/dashboard_managerial.png), [estratégica](docs/img/dashboard_strategic.png) e [assistente](docs/img/dashboard_assistant.png).
 
-## Modelo de previsão
-
-Objetivo: saber, no momento em que o chamado é aberto, se ele deve ser atendido em até 30 dias. Isso dá à central um prazo realista para informar ao cidadão e à supervisão uma lista dos chamados que provavelmente vão atrasar.
-
-Por que classificação e não "quantos dias": 23% dos chamados ainda estão abertos e não têm tempo de resolução. Prever "atendido em até 30 dias, sim ou não" usa esses chamados sem viés (aberto há mais de 30 dias é um "não" conhecido); só ficam de fora os abertos nos últimos 30 dias.
-
-Validação temporal: treino com chamados abertos até 31/05/2025, intervalo de 30 dias e teste com os abertos de 01/07 a 01/12/2025, que o modelo nunca viu. Nada de divisão aleatória.
-
-| Modelo | AUC | Brier | Precisão do alerta | Recall do alerta |
-|---|---|---|---|---|
-| Taxa geral do treino | 0,500 | 0,222 | - | - |
-| Histórico do serviço | 0,954 | 0,073 | 83,4% | 86,8% |
-| Gradient boosting (scikit-learn) | 0,960 | 0,067 | 89,2% | 83,6% |
-
-Como interpretar: o tipo de serviço praticamente decide o prazo, então a taxa histórica de cada serviço já é uma régua muito forte. O modelo fica acima dela em todas as métricas de probabilidade, e o alerta "não deve ser atendido em 30 dias" (chance abaixo de 50%) acerta 89% das vezes contra 83% do histórico. O ganho vem quase todo do bairro e aparece onde o prazo é incerto: o erro cai 38% em arborização e 25% em drenagem, e em iluminação e limpeza o modelo empata com o histórico. Chuva, mês e dia da semana mudam o volume de chamados, mas não o prazo de cada um. O raciocínio completo, a calibração e as limitações estão no notebook [04_resolution_model.ipynb](notebooks/04_resolution_model.ipynb), e os números de cada treino em [docs/ml_results.md](docs/ml_results.md).
-
-## IA aplicada: texto e perguntas em linguagem natural
-
-### NLP: unir 14 anos de descrições de serviço
-
-Os dados não têm texto livre do cidadão; o único texto é a descrição do serviço, escolhida de uma lista que mudou em 2024 (códigos novos, e até 2023 com as letras acentuadas apagadas: "MANUTENO EM LMPADA APAGADA"). Traduzir as descrições antigas para a taxonomia atual permitiria analisar 14 anos em vez de 2. O [notebook 05](notebooks/05_service_text.ipynb) treina com as 94 descrições de 2024 e 2025 e testa em 77 descrições de 2012 a 2023 que não existem hoje:
-
-| Método (texto reparado) | Acurácia | Chamados no grupo certo | F1 macro |
-|---|---|---|---|
-| N-gramas de caracteres (TF-IDF) + regressão logística | 0,766 | 0,973 | 0,614 |
-| Embeddings (transformer multilíngue) + regressão logística | 0,597 | 0,907 | 0,447 |
-| Embeddings: serviço atual mais parecido | 0,688 | 0,941 | 0,507 |
-
-O baseline de caracteres ganha do transformer para dizer o grupo: os textos são curtos, abreviados e com grafias quebradas, o que favorece pedaços de palavras. Os embeddings servem para outra coisa, sugerir o serviço atual equivalente, desde que as palavras quebradas sejam antes restauradas a partir do vocabulário atual ("MANUTENO" vira "MANUTENCAO"). Com esse reparo, a descrição de 150 mil chamados passa a encontrar o serviço certo, e as sugestões com similaridade acima de 0,9 acertam o grupo em 100% dos casos (23 descrições, 272 mil chamados). O de-para sugerido está em [docs/service_mapping.csv](docs/service_mapping.csv) e os números de cada execução em [docs/nlp_results.md](docs/nlp_results.md).
-
-### Assistente "Pergunte aos dados"
-
-Na página do assistente, a pessoa escreve uma pergunta ("quais os 5 bairros com mais chamados de drenagem em aberto?") e o Claude (Opus 5.5, pela API da Anthropic) escreve a SQL, consulta o banco e responde em português. Toda consulta usada aparece abaixo da resposta, com o resultado, para conferir. O modelo recebe no prompt as tabelas e colunas da gold, os grupos e situações existentes e o significado de cada campo, e pode rodar algumas consultas seguidas para corrigir os próprios erros.
-
-A segurança é em camadas, e cada uma funciona mesmo que a anterior falhe:
-
-1. Validação da SQL antes de executar ([src/ai/sql_guard.py](src/ai/sql_guard.py)): um único comando, só `SELECT`, só as tabelas da gold e a view do dashboard, sem funções perigosas e com limite de 200 linhas. Testada em [tests/test_sql_guard.py](tests/test_sql_guard.py).
-2. Usuário de banco `assistant_readonly`, que só tem permissão de leitura nessas tabelas e não enxerga o schema `ops`.
-3. Transação em modo somente leitura e tempo máximo de 10 segundos por consulta.
-
-Sem chave de API, a página avisa como habilitar o assistente e continua permitindo rodar uma SQL à mão, com as mesmas proteções. Para habilitar, coloque `ANTHROPIC_API_KEY` no arquivo `.env` e rode `docker compose up`.
-
 ## Como rodar
 
 Pré-requisito: Docker com Docker Compose. O `make` é opcional e só encurta os comandos.
