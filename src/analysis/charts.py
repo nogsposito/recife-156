@@ -144,3 +144,25 @@ def plot_rain_and_tickets(
         )
     )
     _save(fig, path)
+
+
+# Confusion matrix with counts in each cell; rows are the true group, columns the predicted one
+def plot_confusion(confusion: pd.DataFrame, path: Path, title: str) -> None:
+    size = max(6, 0.45 * len(confusion))
+    fig, ax = plt.subplots(figsize=(size + 2, size))
+    ax.imshow(confusion.to_numpy(), cmap="Blues", aspect="auto")
+    for (row, col), value in np.ndenumerate(confusion.to_numpy()):
+        if value:
+            dark = value > confusion.to_numpy().max() * 0.6
+            ax.text(col, row, str(value), ha="center", va="center", fontsize=8,
+                    color="white" if dark else TEXT_PRIMARY)  # fmt: skip
+    labels = [name.title() for name in confusion.index]
+    ax.set_xticks(range(len(labels)), labels, rotation=60, ha="right", fontsize=8)
+    ax.set_yticks(range(len(labels)), labels, fontsize=8)
+    ax.set_xlabel("Grupo previsto")
+    ax.set_ylabel("Grupo real")
+    ax.tick_params(length=0)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    ax.set_title(title)
+    _save(fig, path)
