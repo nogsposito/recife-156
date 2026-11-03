@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/nogsposito/recife-156/actions/workflows/ci.yml/badge.svg)](https://github.com/nogsposito/recife-156/actions/workflows/ci.yml)
 
-Pipeline de dados ponta a ponta sobre os chamados do 156 da Emlurb, a central em que moradores do Recife pedem conserto de iluminação, limpeza, poda de árvores, drenagem, pavimentação e outros serviços urbanos. O projeto cruza os dados abertos da prefeitura com a chuva diária da cidade, organiza o tratamento em camadas (bronze, silver e gold) com ingestão incremental e validações de qualidade, modela a camada final em esquema estrela no PostgreSQL, responde perguntas de gestão com SQL em notebooks que registram cada descoberta, treina um modelo que prevê na abertura se um chamado será atendido em até 30 dias e entrega um dashboard com uma visão para cada público: quem opera a central, quem gere os serviços e quem decide a estratégia.
+Pipeline de dados ponta a ponta sobre os chamados do 156 da Emlurb, a central em que moradores do Recife pedem conserto de iluminação, limpeza, poda de árvores, drenagem, pavimentação e outros serviços urbanos. O projeto cruza os dados abertos da prefeitura com a chuva diária da cidade, organiza o tratamento em camadas (bronze, silver e gold) com ingestão incremental e validações de qualidade, modela a camada final em esquema estrela no PostgreSQL, responde perguntas de gestão com SQL em notebooks que registram cada descoberta, treina um modelo que prevê na abertura se um chamado será atendido em até 30 dias, usa NLP para unir 14 anos de descrições de serviço e entrega um dashboard com um assistente que responde perguntas em linguagem natural gerando SQL. O dashboard tem uma visão para cada público: quem opera a central, quem gere os serviços e quem decide a estratégia.
 
 ## O problema
 
@@ -32,6 +32,8 @@ flowchart LR
     N --> R[Resumo<br/>docs/analises.md]
     G --> M[Modelo<br/>scikit-learn]
     M --> D[Dashboard<br/>Streamlit]
+    G -->|usuário só leitura| AI[Assistente<br/>text-to-SQL]
+    AI --> D
     G --> D
 ```
 
@@ -41,7 +43,9 @@ flowchart LR
 4. Gold ([sql/schema.sql](sql/schema.sql), [src/transform/modeling.py](src/transform/modeling.py), [src/db/load.py](src/db/load.py)): fato de chamados e dimensões de serviço, bairro e data (com o clima do dia), carregados com `COPY` e indexados em uma única transação.
 5. Análise ([notebooks](notebooks), [sql/analyses](sql/analyses)): cinco perguntas de gestão e o efeito da chuva, respondidos com dez consultas SQL versionadas e três hipóteses testadas. As conclusões ficam em [docs/analises.md](docs/analises.md).
 6. Modelo ([src/ml](src/ml)): prevê, na abertura, a chance de um chamado ser atendido em até 30 dias, com validação temporal contra dois baselines. `make train` treina e salva o modelo.
-7. Dashboard ([app/](app)): quatro páginas em Streamlit e Plotly, uma por público mais a de previsões, lendo a gold pela view `v_tickets`.
+7. NLP ([src/nlp](src/nlp)): classifica as descrições de serviço antigas (2012 a 2023) na taxonomia atual e sugere o serviço equivalente, com embeddings de um transformer e um baseline de n-gramas de caracteres. `make nlp` roda tudo.
+8. Assistente ([src/ai](src/ai)): text-to-SQL com a API da Anthropic, com usuário de banco somente leitura e validação de cada consulta.
+9. Dashboard ([app/](app)): cinco páginas em Streamlit e Plotly: uma por público, a de previsões e a do assistente, lendo a gold pela view `v_tickets`.
 
 O detalhe de cada camada, o fluxo de uma execução e o modelo completo estão em [docs/architecture.md](docs/architecture.md). As decisões de arquitetura têm registro próprio: [PostgreSQL](docs/adr/0001-postgresql-como-banco-analitico.md), [camadas](docs/adr/0002-camadas-bronze-silver-gold.md), [Parquet](docs/adr/0003-parquet-para-bronze-e-silver.md) e [carga incremental até a bronze e completa na gold](docs/adr/0004-carga-completa-da-gold.md).
 
@@ -119,6 +123,32 @@ Validação temporal: treino com chamados abertos até 31/05/2025, intervalo de 
 
 Como interpretar: o tipo de serviço praticamente decide o prazo, então a taxa histórica de cada serviço já é uma régua muito forte. O modelo fica acima dela em todas as métricas de probabilidade, e o alerta "não deve ser atendido em 30 dias" (chance abaixo de 50%) acerta 89% das vezes contra 83% do histórico. O ganho vem quase todo do bairro e aparece onde o prazo é incerto: o erro cai 38% em arborização e 25% em drenagem, e em iluminação e limpeza o modelo empata com o histórico. Chuva, mês e dia da semana mudam o volume de chamados, mas não o prazo de cada um. O raciocínio completo, a calibração e as limitações estão no notebook [04_resolution_model.ipynb](notebooks/04_resolution_model.ipynb), e os números de cada treino em [docs/ml_results.md](docs/ml_results.md).
 
+## IA aplicada: texto e perguntas em linguagem natural
+
+### NLP: unir 14 anos de descrições de serviço
+
+Os dados não têm texto livre do cidadão; o único texto é a descrição do serviço, escolhida de uma lista que mudou em 2024 (códigos novos, e até 2023 com as letras acentuadas apagadas: "MANUTENO EM LMPADA APAGADA"). Traduzir as descrições antigas para a taxonomia atual permitiria analisar 14 anos em vez de 2. O [notebook 05](notebooks/05_service_text.ipynb) treina com as 94 descrições de 2024 e 2025 e testa em 77 descrições de 2012 a 2023 que não existem hoje:
+
+| Método (texto reparado) | Acurácia | Chamados no grupo certo | F1 macro |
+|---|---|---|---|
+| N-gramas de caracteres (TF-IDF) + regressão logística | 0,766 | 0,973 | 0,614 |
+| Embeddings (transformer multilíngue) + regressão logística | 0,597 | 0,907 | 0,447 |
+| Embeddings: serviço atual mais parecido | 0,688 | 0,941 | 0,507 |
+
+O baseline de caracteres ganha do transformer para dizer o grupo: os textos são curtos, abreviados e com grafias quebradas, o que favorece pedaços de palavras. Os embeddings servem para outra coisa, sugerir o serviço atual equivalente, desde que as palavras quebradas sejam antes restauradas a partir do vocabulário atual ("MANUTENO" vira "MANUTENCAO"). Com esse reparo, a descrição de 150 mil chamados passa a encontrar o serviço certo, e as sugestões com similaridade acima de 0,9 acertam o grupo em 100% dos casos (23 descrições, 272 mil chamados). O de-para sugerido está em [docs/service_mapping.csv](docs/service_mapping.csv) e os números de cada execução em [docs/nlp_results.md](docs/nlp_results.md).
+
+### Assistente "Pergunte aos dados"
+
+Na página do assistente, a pessoa escreve uma pergunta ("quais os 5 bairros com mais chamados de drenagem em aberto?") e o Claude (Opus 5.5, pela API da Anthropic) escreve a SQL, consulta o banco e responde em português. Toda consulta usada aparece abaixo da resposta, com o resultado, para conferir. O modelo recebe no prompt as tabelas e colunas da gold, os grupos e situações existentes e o significado de cada campo, e pode rodar algumas consultas seguidas para corrigir os próprios erros.
+
+A segurança é em camadas, e cada uma funciona mesmo que a anterior falhe:
+
+1. Validação da SQL antes de executar ([src/ai/sql_guard.py](src/ai/sql_guard.py)): um único comando, só `SELECT`, só as tabelas da gold e a view do dashboard, sem funções perigosas e com limite de 200 linhas. Testada em [tests/test_sql_guard.py](tests/test_sql_guard.py).
+2. Usuário de banco `assistant_readonly`, que só tem permissão de leitura nessas tabelas e não enxerga o schema `ops`.
+3. Transação em modo somente leitura e tempo máximo de 10 segundos por consulta.
+
+Sem chave de API, a página avisa como habilitar o assistente e continua permitindo rodar uma SQL à mão, com as mesmas proteções. Para habilitar, coloque `ANTHROPIC_API_KEY` no arquivo `.env` e rode `docker compose up`.
+
 ## Como rodar
 
 Pré-requisito: Docker com Docker Compose. O `make` é opcional e só encurta os comandos.
@@ -142,6 +172,7 @@ Com `make`:
 | `make ingest` | Só traz para a bronze os arquivos novos ou alterados |
 | `make load` | Monta a silver a partir da bronze, valida e carrega a gold |
 | `make train` | Treina o modelo de 30 dias e atualiza `docs/ml_results.md` |
+| `make nlp` | Roda o NLP das descrições de serviço (baixa 2012 a 2023 e o modelo de embeddings na primeira vez) |
 | `make benchmark` | Mede as consultas pesadas com e sem índices |
 | `make dashboard` | Abre o dashboard com os dados já carregados, sem rodar o pipeline |
 | `make notebooks` | Reexecuta os notebooks, atualizando resultados e gráficos |
@@ -156,7 +187,7 @@ Todos os comandos rodam dentro de containers, então não é preciso instalar Py
 
 ## Testes e integração contínua
 
-Os testes em [tests](tests) cobrem as regras de limpeza, a deduplicação entre arquivos anuais, a escolha do arquivo no portal, a ingestão incremental (pular o que não mudou, não regravar conteúdo igual), as validações de qualidade, a montagem do esquema estrela, a leitura do clima e as features do modelo (alvo, demanda sem olhar o futuro, divisão temporal). Nenhum deles precisa de banco ou internet.
+Os testes em [tests](tests) cobrem as regras de limpeza, a deduplicação entre arquivos anuais, a escolha do arquivo no portal, a ingestão incremental (pular o que não mudou, não regravar conteúdo igual), as validações de qualidade, a montagem do esquema estrela, a leitura do clima as features do modelo (alvo, demanda sem olhar o futuro, divisão temporal), a validação de SQL do assistente, o laço de ferramentas do assistente com um cliente simulado e o reparo e a tradução das descrições de serviço. Nenhum deles precisa de banco, internet ou chave de API.
 
 O workflow [.github/workflows/ci.yml](.github/workflows/ci.yml) roda lint, checagem de formatação e testes em todo pull request e em todo push para `main`.
 
@@ -179,6 +210,8 @@ Estratégico, para a direção: variação entre anos por grupo, sazonalidade ao
 Previsões, para quem prioriza a fila: atrasos esperados por grupo, os chamados recentes com menor chance de atendimento a tempo, um simulador para um novo chamado e a avaliação do modelo.
 
 ![Página de previsões](docs/img/dashboard_predictions.png)
+
+Pergunte aos dados: o assistente descrito acima, com a SQL gerada sempre visível.
 
 ## Principais achados
 
@@ -215,17 +248,19 @@ src/
   db/load.py             carga da gold e registro das execuções
   benchmark.py           EXPLAIN ANALYZE com e sem índices
   ml/                    features, treino com validação temporal e previsão
+  nlp/                   descrições de serviço: reparo, embeddings e de-para
+  ai/                    assistente text-to-SQL e validação de SQL
   analysis/              padrão visual dos gráficos e cálculo do efeito da chuva
   dashboard/             leitura dos dados e estilo do dashboard
-app/                     dashboard Streamlit (navegação e quatro páginas)
-notebooks/               limpeza, análise de negócio, efeito da chuva e modelo
+app/                     dashboard Streamlit (navegação e cinco páginas)
+notebooks/               limpeza, análise de negócio, efeito da chuva, modelo e NLP
 sql/
   schema.sql             esquema estrela e view do dashboard
   indexes.sql            índices da tabela fato
   ops.sql                histórico de execuções e validações
   analyses/              dez consultas analíticas
   benchmark/             consultas usadas no benchmark de otimização
-tests/                   testes de limpeza, ingestão, qualidade, modelagem e features do modelo
+tests/                   testes de limpeza, ingestão, qualidade, modelagem, modelo, NLP e assistente
 docs/                    arquitetura, ADRs, otimização, dicionário de dados, resumo e gráficos
 .github/workflows/       integração contínua
 ```
@@ -240,10 +275,12 @@ docs/                    arquitetura, ADRs, otimização, dicionário de dados, 
 - A chuva vem de um único ponto do modelo em grade do Open-Meteo, que subestima volumes e suaviza temporais. Ela serve para separar dias mais e menos chuvosos; dados de pluviômetro por bairro dariam um teste mais forte.
 - O dashboard mostra a situação na data mais recente dos dados abertos (31/12/2025), não em tempo real.
 - O modelo não conhece capacidade das equipes, contratos ou mutirões, que provavelmente explicam boa parte da diferença entre regiões, e o tempo de atendimento depende de como cada equipe registra o andamento. Ele é retreinado a cada carga para acompanhar mudanças.
+- O NLP trabalha sobre uma lista fechada de descrições, não sobre o relato do cidadão, com treino e teste pequenos (94 e 77 descrições). O de-para sugerido precisa de revisão humana abaixo de 0,9 de similaridade.
+- O assistente depende de uma chave paga da API da Anthropic e pode errar a interpretação de uma pergunta; por isso a SQL sempre aparece. As proteções impedem que ele altere dados, não que ele responda errado.
 
 ## Tecnologias
 
-Python 3.12, pandas, pyarrow (Parquet), requests, SQLAlchemy e psycopg 3, PostgreSQL 16, Streamlit, Plotly, scikit-learn, SciPy, Jupyter, matplotlib, pytest, ruff, GitHub Actions, Docker Compose e Make.
+Python 3.12, pandas, pyarrow (Parquet), requests, SQLAlchemy e psycopg 3, PostgreSQL 16, Streamlit, Plotly, scikit-learn, SciPy, sentence-transformers (PyTorch), API da Anthropic, sqlglot, Jupyter, matplotlib, pytest, ruff, GitHub Actions, Docker Compose e Make.
 
 ## Licença
 

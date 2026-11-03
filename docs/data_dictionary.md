@@ -121,6 +121,10 @@ Esquema estrela definido em [sql/schema.sql](../sql/schema.sql) e recriado a cad
 | | `source_year` | smallint | Arquivo anual de onde veio a versão mais recente |
 | `v_tickets` (view) | | | Chamado com serviço, grupo, bairro, RPA e `is_open`, usada pelo dashboard |
 
+## Acesso do assistente
+
+O usuário `assistant_readonly` é criado pela carga da gold, com senha definida em `ASSISTANT_DB_PASSWORD`. Ele só pode ler `dim_service`, `dim_neighborhood`, `dim_date`, `fact_tickets` e `v_tickets` ([sql/readonly_grants.sql](../sql/readonly_grants.sql)), sempre em transação somente leitura e com limite de 10 segundos por consulta.
+
 ## Metadados de execução (schema `ops`)
 
 | Tabela | Coluna | Descrição |
