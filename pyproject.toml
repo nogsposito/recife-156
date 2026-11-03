@@ -14,6 +14,7 @@ dependencies = [
     "matplotlib>=3.9",
     "plotly>=5.24",
     "pyarrow>=17",
+    "pymongo>=4.8",
     "scikit-learn>=1.5",
     "scipy>=1.14",
     "sqlglot>=25",
