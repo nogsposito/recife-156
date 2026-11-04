@@ -4,7 +4,9 @@
 
 Projeto de dados ponta a ponta sobre os chamados do 156 da Emlurb, a central em que moradores do Recife pedem conserto de iluminação, limpeza, poda de árvores, drenagem e pavimentação. Ele cruza os dados abertos da prefeitura com a chuva diária da cidade, trata tudo em camadas (bronze, silver e gold) com ingestão incremental e validações de qualidade, modela a camada final em esquema estrela no PostgreSQL, guarda o dado bruto no MongoDB, responde perguntas de gestão com SQL em notebooks, treina um modelo que prevê na abertura se um chamado será atendido em até 30 dias, usa NLP para unir 14 anos de descrições de serviço e entrega um dashboard com uma visão para cada público e um assistente que responde perguntas em português gerando SQL.
 
-![Demonstração do dashboard](docs/img/demo.gif)
+Painel publicado: [recife-156.streamlit.app](https://recife-156.streamlit.app)
+
+[![Visão geral do painel](docs/img/dashboard_hero.png)](https://recife-156.streamlit.app)
 
 ## Principais achados
 
@@ -114,9 +116,9 @@ As consultas usam CTEs, window functions (participação acumulada, `LAG` contra
 
 | Consulta | Sem índice | Com índice |
 |---|---|---|
-| Fila em aberto de um bairro, mais antigos primeiro | 35,8 ms | 0,3 ms |
-| Médias móveis de 7 e 28 dias de um serviço | 33,0 ms | 3,0 ms |
-| Chamados por dia e grupo com a chuva do dia | 345,5 ms | 315,4 ms |
+| Fila em aberto de um bairro, mais antigos primeiro | 38,6 ms | 0,2 ms |
+| Médias móveis de 7 e 28 dias de um serviço | 37,9 ms | 3,5 ms |
+| Chamados por dia e grupo com a chuva do dia | 337,1 ms | 332,7 ms |
 
 O índice parcial só dos chamados em aberto é o que mais ganha. Na terceira consulta, que precisa contar a tabela inteira, índice não ajuda; o que funcionou foi reescrevê-la para agregar antes de juntar com o calendário, cerca de 2,5 vezes mais rápida com o mesmo resultado.
 
@@ -154,7 +156,7 @@ Para dizer o grupo, o baseline de caracteres ganha do transformer: os textos sã
 
 ### Assistente "Pergunte aos dados"
 
-A pessoa escreve uma pergunta ("quais os 5 bairros com mais chamados de drenagem em aberto?") e o Claude (Opus 5.5, pela API da Anthropic) escreve a SQL, consulta o banco e responde em português, mostrando cada consulta usada e o resultado. O modelo recebe no prompt as tabelas e colunas da gold, os valores das categorias e o significado de cada campo, e pode rodar algumas consultas seguidas para corrigir os próprios erros.
+A pessoa escreve uma pergunta ("quais os 5 bairros com mais chamados de drenagem em aberto?") e um modelo de linguagem (Claude Haiku 5.5, acessado pelo OpenRouter) escreve a SQL, consulta o banco e responde em português, mostrando cada consulta usada e o resultado. O modelo recebe no prompt as tabelas e colunas da gold, os valores das categorias e o significado de cada campo, e pode rodar algumas consultas seguidas para corrigir os próprios erros.
 
 A segurança é em camadas, e cada uma funciona mesmo que a anterior falhe:
 
@@ -162,25 +164,28 @@ A segurança é em camadas, e cada uma funciona mesmo que a anterior falhe:
 2. Usuário de banco `assistant_readonly`, que só lê essas tabelas e não enxerga o schema `ops`.
 3. Transação somente leitura e tempo máximo de 10 segundos por consulta.
 
-Sem chave de API, a página avisa como habilitar o assistente e continua permitindo rodar uma SQL à mão, com as mesmas proteções. Para habilitar, coloque `ANTHROPIC_API_KEY` no arquivo `.env`.
+O OpenRouter expõe vários modelos numa API no formato da OpenAI, então trocar de modelo é mudar `OPENROUTER_MODEL`. A chave fica só no servidor: o navegador recebe a resposta, nunca a requisição. Na versão publicada, a chave tem limite de gasto e cada visita pode fazer 8 perguntas.
+
+Sem chave, a página avisa como habilitar o assistente e continua permitindo rodar uma SQL à mão, com as mesmas proteções. Para habilitar localmente, coloque `OPENROUTER_API_KEY` no arquivo `.env`.
 
 ## Dashboard
 
-Cada página responde às perguntas de um público e tem filtros por grupo de serviço e região quando fazem sentido.
+O painel está publicado em [recife-156.streamlit.app](https://recife-156.streamlit.app). Cada página abre com um título que já diz a conclusão, calculada a partir dos dados e dos filtros escolhidos, e cada gráfico destaca em cor só o que o título comenta.
 
-| Página | Para quem | O que mostra |
-|---|---|---|
-| Operacional | Quem coordena a central e as equipes | O que chegou nos últimos dias, tamanho e idade da fila, bairros e serviços com mais pendências |
-| Gerencial | Gestão da Emlurb | Volume, taxa de atendimento e tempos por grupo, abertos e atendidos por mês, tempo por região |
-| Estratégico | Direção | Variação entre anos, sazonalidade ao lado da chuva, efeito da chuva forte por serviço |
-| Previsões | Quem prioriza a fila | Atrasos esperados, chamados recentes com menor chance de atendimento a tempo, simulador e avaliação do modelo |
-| Pergunte aos dados | Qualquer pessoa | O assistente, com a SQL sempre visível |
+| Página | O que responde |
+|---|---|
+| [Visão geral](docs/img/dashboard_overview.png) | Os três achados principais e o caminho dos dados do portal até o banco |
+| [A fila hoje](docs/img/dashboard_operational.png) | O que chegou nos últimos dias, o ritmo da semana e onde a fila está parada, por bairro e serviço |
+| [Tempo de atendimento](docs/img/dashboard_managerial.png) | Quanto cada grupo de serviço espera, como a região muda a espera e se entra mais do que sai |
+| [Tendência e chuva](docs/img/dashboard_strategic.png) | Variação entre anos, sazonalidade e efeito da chuva forte por serviço, com teste estatístico |
+| [Previsão de atraso](docs/img/dashboard_predictions.png) | Validação temporal, comparação com alternativas simples, onde o modelo ganha, calibração, fila de agora e simulador |
+| [Histórico com NLP](docs/img/dashboard_history.png) | Comparação dos métodos, efeito do reparo de texto e o de-para completo das descrições antigas |
+| [Pergunte aos dados](docs/img/dashboard_assistant.png) | O assistente, com a SQL sempre visível |
+| [Pipeline e qualidade](docs/img/dashboard_pipeline.png) | Checagens da última carga, versão de cada fonte, histórico de execuções e o ganho dos índices |
 
-![Página operacional](docs/img/dashboard_operational.png)
+As cores seguem uma paleta categórica validada para daltonismo; os nomes, que nos dados abertos vêm em maiúsculas e sem acento, ganham acentos só na tela.
 
-![Página de previsões](docs/img/dashboard_predictions.png)
-
-Mais capturas: [gerencial](docs/img/dashboard_managerial.png), [estratégica](docs/img/dashboard_strategic.png) e [assistente](docs/img/dashboard_assistant.png).
+![Página de previsão de atraso](docs/img/dashboard_predictions.png)
 
 ## Como rodar
 
@@ -209,11 +214,15 @@ O Compose sobe o PostgreSQL e o MongoDB, roda o pipeline (ingestão, silver, val
 | `make psql` | Terminal SQL no banco |
 | `make down` / `make clean` | Para os containers / apaga também os bancos e as camadas de arquivos |
 
+### Publicação
+
+A versão em [recife-156.streamlit.app](https://recife-156.streamlit.app) roda no Streamlit Community Cloud e lê um PostgreSQL gerenciado no Neon. O mesmo pipeline carrega esse banco, bastando apontar `DATABASE_URL` para ele, e o modelo treinado fica gravado na tabela `ops.model_artifacts`, já que a pasta `models/` não vai para o repositório. As URLs do banco e a chave do OpenRouter ficam nos secrets do Streamlit Cloud; o [requirements.txt](requirements.txt) fixa as mesmas versões da imagem Docker, para o modelo carregar com o mesmo scikit-learn.
+
 Para mudar o recorte, ajuste `YEARS` no `.env` (por exemplo `YEARS=2024,2025,2026`). Anos anteriores a 2024 são recusados com uma mensagem explicando o motivo. Tudo roda em containers; para rodar fora do Docker, com Python 3.11 ou mais recente, use `pip install -e ".[dev,notebooks,nlp]"`.
 
 ## Testes e integração contínua
 
-Os 46 testes em [tests](tests) cobrem as regras de limpeza, a deduplicação entre arquivos anuais, a escolha do arquivo no portal, a ingestão incremental, as validações de qualidade, o esquema estrela, o clima, as features do modelo (alvo, demanda sem olhar o futuro, divisão temporal), o NLP, a validação de SQL e o laço do assistente com um cliente simulado, e a conversão para documentos do MongoDB. Nenhum precisa de banco, internet ou chave de API. O workflow [.github/workflows/ci.yml](.github/workflows/ci.yml) roda lint, formatação e testes em todo pull request.
+Os 49 testes em [tests](tests) cobrem as regras de limpeza, a deduplicação entre arquivos anuais, a escolha do arquivo no portal, a ingestão incremental, as validações de qualidade, o esquema estrela, o clima, as features do modelo (alvo, demanda sem olhar o futuro, divisão temporal), o NLP, a validação de SQL, o laço do assistente com um cliente simulado, os rótulos com acento do painel e a conversão para documentos do MongoDB. Nenhum precisa de banco, internet ou chave de API. O workflow [.github/workflows/ci.yml](.github/workflows/ci.yml) roda lint, formatação e testes em todo pull request.
 
 ## Estrutura do repositório
 
@@ -229,9 +238,10 @@ src/
   ml/                    features, treino com validação temporal e previsão
   nlp/                   descrições de serviço: reparo, embeddings e de-para
   ai/                    assistente text-to-SQL e validação de SQL
-  analysis/, dashboard/  gráficos, efeito da chuva e leitura de dados do dashboard
+  analysis/              gráficos estáticos e efeito da chuva
+  dashboard/             leitura dos dados, tema dos gráficos, componentes e rótulos do painel
   benchmark.py           EXPLAIN ANALYZE com e sem índices
-app/                     dashboard Streamlit
+app/                     painel Streamlit, uma página por arquivo em app/views
 notebooks/               limpeza, análise de negócio, chuva, modelo e NLP
 sql/                     esquema, índices, permissões, consultas analíticas e de benchmark
 tests/                   testes automatizados
@@ -248,7 +258,7 @@ docs/                    resumo, estudo de caso, arquitetura, ADRs, componentes 
 - O dashboard mostra a situação na data mais recente dos dados abertos (31/12/2025), não em tempo real. Não há deploy público, porque o dashboard depende dos bancos; a demonstração está no GIF acima.
 - O modelo não conhece capacidade das equipes, contratos ou mutirões, que provavelmente explicam boa parte da diferença entre regiões.
 - O NLP trabalha sobre uma lista fechada de descrições, com treino e teste pequenos; o de-para precisa de revisão humana abaixo de 0,9 de similaridade.
-- O assistente depende de uma chave paga da API da Anthropic e pode interpretar mal uma pergunta; por isso a SQL sempre aparece. As proteções impedem que ele altere dados, não que responda errado.
+- O assistente depende de uma chave do OpenRouter e pode interpretar mal uma pergunta; por isso a SQL sempre aparece. As proteções impedem que ele altere dados, não que responda errado.
 
 ## Como usei IA no desenvolvimento
 
@@ -267,7 +277,7 @@ O que exige cuidado: a IA escreve rápido e com confiança, então os pontos de 
 
 ## Tecnologias
 
-Python 3.12, pandas, pyarrow (Parquet), requests, SQLAlchemy e psycopg 3, PostgreSQL 16, MongoDB 7 e pymongo, Streamlit, Plotly, scikit-learn, SciPy, sentence-transformers (PyTorch), API da Anthropic, sqlglot, Jupyter, matplotlib, pytest, ruff, GitHub Actions, Docker Compose e Make.
+Python 3.12, pandas, pyarrow (Parquet), requests, SQLAlchemy e psycopg 3, PostgreSQL 16, MongoDB 7 e pymongo, Streamlit, Plotly, scikit-learn, SciPy, sentence-transformers (PyTorch), LLM via OpenRouter (Claude Haiku 5.5), sqlglot, Jupyter, matplotlib, pytest, ruff, GitHub Actions, Docker Compose e Make. Publicado no Streamlit Community Cloud, com banco no Neon.
 
 ## Licença
 

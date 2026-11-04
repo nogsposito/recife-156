@@ -1,0 +1,32 @@
+{
+  "indexes": [
+    {
+      "query": "Fila em aberto de um bairro, dos chamados mais antigos para os mais novos",
+      "without_ms": 38.631,
+      "with_ms": 0.194,
+      "without_plan": "Seq Scan",
+      "with_plan": "Index Scan (idx_fact_tickets_open_by_neighborhood)"
+    },
+    {
+      "query": "Médias móveis de 7 e 28 dias de um serviço no semestre",
+      "without_ms": 37.933,
+      "with_ms": 3.474,
+      "without_plan": "Seq Scan",
+      "with_plan": "Index Scan (idx_fact_tickets_service_opened)"
+    },
+    {
+      "query": "Chamados por dia e grupo, ao lado da chuva do dia",
+      "without_ms": 337.069,
+      "with_ms": 332.686,
+      "without_plan": "Seq Scan",
+      "with_plan": "Index Only Scan (idx_fact_tickets_service_opened)"
+    }
+  ],
+  "rewrites": [
+    {
+      "query": "Chamados por dia e grupo, ao lado da chuva do dia",
+      "first_ms": 822.294,
+      "rewritten_ms": 332.686
+    }
+  ]
+}

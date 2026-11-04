@@ -1,15 +1,22 @@
+import io
 from pathlib import Path
 
 import joblib
 import numpy as np
 import pandas as pd
+from sqlalchemy import Engine
 
+from src.db.load import load_model_artifact
 from src.ml.features import to_model_input
-from src.ml.train import MODEL_PATH
+from src.ml.train import MODEL_NAME, MODEL_PATH
 
 
-def load_artifact(path: Path = MODEL_PATH) -> dict | None:
-    return joblib.load(path) if path.exists() else None
+# The local file wins; without it (the hosted dashboard) the copy saved in the database is used
+def load_artifact(path: Path = MODEL_PATH, engine: Engine | None = None) -> dict | None:
+    if path.exists():
+        return joblib.load(path)
+    payload = load_model_artifact(engine, MODEL_NAME) if engine is not None else None
+    return joblib.load(io.BytesIO(payload)) if payload else None
 
 
 # Chance of each ticket being resolved within the horizon

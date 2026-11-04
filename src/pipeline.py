@@ -2,7 +2,14 @@ import argparse
 import logging
 
 from src.config import YEARS
-from src.db.load import finish_run, get_engine, load_gold, save_quality_checks, start_run
+from src.db.load import (
+    finish_run,
+    get_engine,
+    load_gold,
+    save_quality_checks,
+    save_source_versions,
+    start_run,
+)
 from src.ingestion.ckan import ingest_tickets
 from src.ingestion.weather import ingest_weather
 from src.layers.bronze import load_manifest, save_manifest
@@ -35,6 +42,7 @@ def run_load(years: list[int], changed_inputs: str) -> None:
         save_quality_checks(engine, run_id, results)
         enforce(results)
         load_gold(engine, build_tables(tickets, weather))
+        save_source_versions(engine, run_id, load_manifest())
     except Exception as error:
         finish_run(engine, run_id, "failed", message=str(error)[:500])
         raise

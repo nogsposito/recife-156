@@ -20,3 +20,6 @@ models/
 Thumbs.db
 .vscode/
 .idea/
+
+# Streamlit secrets (database URLs and API key of the hosted app)
+.streamlit/secrets.toml

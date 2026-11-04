@@ -1,3 +1,4 @@
+import json
 import logging
 import statistics
 from pathlib import Path
@@ -25,6 +26,7 @@ REWRITES = [
 INDEXES = ["idx_fact_tickets_service_opened", "idx_fact_tickets_open_by_neighborhood"]
 RUNS = 15
 REPORT_PATH = DOCS_DIR / "sql_optimization.md"
+RESULTS_PATH = DOCS_DIR / "benchmark.json"
 START_MARK, END_MARK = "<!-- benchmark:start -->", "<!-- benchmark:end -->"
 
 
@@ -137,6 +139,33 @@ def write_report(tables: str) -> None:
     log.info("Results written to %s", REPORT_PATH)
 
 
+# The same numbers as the report, in a shape the dashboard can read
+def write_results(without_indexes: dict, with_indexes: dict, first_versions: dict) -> None:
+    results = {
+        "indexes": [
+            {
+                "query": _title(path),
+                "without_ms": without_indexes[path][0],
+                "with_ms": with_indexes[path][0],
+                "without_plan": without_indexes[path][1],
+                "with_plan": with_indexes[path][1],
+            }
+            for path in QUERIES
+        ],
+        "rewrites": [
+            {
+                "query": _title(new),
+                "first_ms": first_versions[old][0],
+                "rewritten_ms": with_indexes[new][0],
+            }
+            for old, new in REWRITES
+        ],
+    }
+    RESULTS_PATH.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    write_report(results_tables(*run_benchmark()))
+    measured = run_benchmark()
+    write_report(results_tables(*measured))
+    write_results(*measured)

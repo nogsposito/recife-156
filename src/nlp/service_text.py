@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import warnings
@@ -24,6 +25,7 @@ EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 MIN_TICKETS = 5
 REPORT_PATH = DOCS_DIR / "nlp_results.md"
 MAPPING_PATH = DOCS_DIR / "service_mapping.csv"
+RESULTS_PATH = DOCS_DIR / "nlp_results.json"
 START_MARK, END_MARK = "<!-- nlp:start -->", "<!-- nlp:end -->"
 
 
@@ -209,6 +211,8 @@ def results_markdown(runs: dict[str, dict]) -> str:
 
 def save(runs: dict[str, dict]) -> None:
     runs["com reparo"]["mapping"].to_csv(MAPPING_PATH, index=False)
+    results = {label: run["results"] for label, run in runs.items()}
+    RESULTS_PATH.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
     report = REPORT_PATH.read_text(encoding="utf-8")
     start, end = report.index(START_MARK) + len(START_MARK), report.index(END_MARK)
     REPORT_PATH.write_text(
