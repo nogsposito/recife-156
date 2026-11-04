@@ -1,34 +1,43 @@
+import json
 import os
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Protocol
 
-import anthropic
 import pandas as pd
+import requests
 from sqlalchemy import Engine, create_engine, text
 
 from src.ai.sql_guard import ALLOWED_TABLES, MAX_ROWS, UnsafeQueryError, validate_sql
+from src.config import with_psycopg
 
-MODEL = os.getenv("ANTHROPIC_MODEL", "claude-opus-5-5")
-ASSISTANT_DATABASE_URL = os.getenv(
-    "ASSISTANT_DATABASE_URL",
-    "postgresql+psycopg://assistant_readonly:assistant@localhost:5433/recife156",
+MODEL = os.getenv("OPENROUTER_MODEL", "anthropic/claude-haiku-5.5")
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+ASSISTANT_DATABASE_URL = with_psycopg(
+    os.getenv(
+        "ASSISTANT_DATABASE_URL",
+        "postgresql+psycopg://assistant_readonly:assistant@localhost:5433/recife156",
+    )
 )
 MAX_STEPS = 5
+MAX_TOKENS = 2000
 
 RUN_SQL_TOOL = {
-    "name": "run_sql",
-    "description": (
-        "Executa uma única consulta SELECT no PostgreSQL dos chamados do 156, com usuário "
-        f"somente leitura, e devolve até {MAX_ROWS} linhas em CSV. Use para qualquer número "
-        "que a resposta precise."
-    ),
-    "input_schema": {
-        "type": "object",
-        "properties": {"sql": {"type": "string", "description": "Uma consulta SELECT"}},
-        "required": ["sql"],
-        "additionalProperties": False,
+    "type": "function",
+    "function": {
+        "name": "run_sql",
+        "description": (
+            "Executa uma única consulta SELECT no PostgreSQL dos chamados do 156, com usuário "
+            f"somente leitura, e devolve até {MAX_ROWS} linhas em CSV. Use para qualquer número "
+            "que a resposta precise."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {"sql": {"type": "string", "description": "Uma consulta SELECT"}},
+            "required": ["sql"],
+            "additionalProperties": False,
+        },
     },
-    "strict": True,
 }
 
 INSTRUCTIONS = """Você responde perguntas sobre os chamados do 156 da Emlurb, a central de \
@@ -51,8 +60,46 @@ para chamados atendidos é o tempo de atendimento.
 """
 
 
+class AssistantError(Exception):
+    """Failure talking to the model, with a message that is safe to show on screen."""
+
+
+class ChatClient(Protocol):
+    def complete(self, **request) -> dict: ...
+
+
 def has_credentials() -> bool:
-    return bool(os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN"))
+    return bool(os.getenv("OPENROUTER_API_KEY"))
+
+
+# OpenRouter speaks the OpenAI chat completions format. The key stays on the server: the
+# browser only sees the answer, never the request
+class OpenRouterClient:
+    def __init__(self, api_key: str | None = None):
+        self._api_key = api_key or os.environ["OPENROUTER_API_KEY"]
+
+    def complete(self, **request) -> dict:
+        try:
+            response = requests.post(
+                OPENROUTER_URL,
+                json=request,
+                headers={"Authorization": f"Bearer {self._api_key}", "X-Title": "Recife 156"},
+                timeout=(10, 120),
+            )
+        except requests.RequestException as error:
+            raise AssistantError("Não foi possível falar com a API do modelo.") from error
+        if response.status_code == 402:
+            raise AssistantError("O crédito de demonstração do assistente acabou.")
+        if response.status_code == 429:
+            raise AssistantError("Muitas perguntas ao mesmo tempo. Tente de novo em instantes.")
+        if response.status_code in (401, 403):
+            raise AssistantError("A chave da API do modelo não foi aceita.")
+        if not response.ok:
+            raise AssistantError(f"A API do modelo respondeu com erro {response.status_code}.")
+        body = response.json()
+        if "choices" not in body:
+            raise AssistantError("A API do modelo devolveu uma resposta sem conteúdo.")
+        return body
 
 
 def get_readonly_engine() -> Engine:
@@ -128,57 +175,48 @@ def run_readonly_query(engine: Engine, sql: str) -> QueryRun:
     return QueryRun(sql, result=frame.head(MAX_ROWS), truncated=len(frame) > MAX_ROWS)
 
 
-def _text_of(response) -> str:
-    return "\n".join(block.text for block in response.content if block.type == "text").strip()
+def _run_tool_call(call: dict, execute: Callable[[str], QueryRun]) -> QueryRun:
+    try:
+        sql = json.loads(call["function"]["arguments"])["sql"]
+    except (KeyError, TypeError, json.JSONDecodeError):
+        return QueryRun("", error="Chamada sem uma consulta SQL válida no campo sql.")
+    return execute(sql)
 
 
 # Tool-use loop: the model may run a few queries (fixing its own errors) before answering
 def ask(
     question: str,
     schema: str,
-    client: anthropic.Anthropic,
+    client: ChatClient,
     execute: Callable[[str], QueryRun],
     max_steps: int = MAX_STEPS,
 ) -> Answer:
-    messages = [{"role": "user", "content": question}]
-    system = [
-        {
-            "type": "text",
-            "text": f"{INSTRUCTIONS}\n{schema}",
-            "cache_control": {"type": "ephemeral"},
-        }
+    messages = [
+        {"role": "system", "content": f"{INSTRUCTIONS}\n{schema}"},
+        {"role": "user", "content": question},
     ]
     queries: list[QueryRun] = []
     for _ in range(max_steps):
-        response = client.beta.messages.create(
-            model=MODEL,
-            max_tokens=16000,
-            system=system,
-            tools=[RUN_SQL_TOOL],
-            messages=messages,
-            output_config={"effort": "medium"},
-            betas=["server-side-fallback-2026-07-01"],
-            fallbacks="default",
+        response = client.complete(
+            model=MODEL, messages=messages, tools=[RUN_SQL_TOOL], max_tokens=MAX_TOKENS
         )
-        if response.stop_reason == "refusal":
+        choice = response["choices"][0]
+        message = choice["message"]
+        if choice.get("finish_reason") == "content_filter" or message.get("refusal"):
             return Answer("O modelo não respondeu a esta pergunta.", queries)
 
-        tool_uses = [block for block in response.content if block.type == "tool_use"]
-        if not tool_uses:
-            return Answer(_text_of(response), queries)
+        tool_calls = message.get("tool_calls") or []
+        if not tool_calls:
+            text = (message.get("content") or "").strip()
+            return Answer(text or "O modelo não respondeu a esta pergunta.", queries)
 
-        messages.append({"role": "assistant", "content": response.content})
-        results = []
-        for block in tool_uses:
-            run = execute(block.input["sql"])
+        messages.append(
+            {"role": "assistant", "content": message.get("content") or "", "tool_calls": tool_calls}
+        )
+        for call in tool_calls:
+            run = _run_tool_call(call, execute)
             queries.append(run)
-            results.append(
-                {
-                    "type": "tool_result",
-                    "tool_use_id": block.id,
-                    "content": run.as_tool_output(),
-                    "is_error": run.error is not None,
-                }
+            messages.append(
+                {"role": "tool", "tool_call_id": call["id"], "content": run.as_tool_output()}
             )
-        messages.append({"role": "user", "content": results})
     return Answer(f"Não cheguei a uma resposta em {max_steps} consultas.", queries)
