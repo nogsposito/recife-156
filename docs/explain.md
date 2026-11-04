@@ -114,11 +114,11 @@ O que faz: põe as descrições antigas na taxonomia atual e sugere o serviço e
 Por que: é o único texto dos dados, e unificá-lo destrava 12 anos de histórico. O modelo `paraphrase-multilingual-MiniLM-L12-v2` é pequeno o bastante para rodar em CPU.
 Alternativas: correspondência aproximada de strings (rápida, mas não entende sinônimos), um LLM para fazer o de-para (bom resultado provável, com custo e menos reprodutibilidade).
 
-### Assistente "Pergunte aos dados" (API da Anthropic, `src/ai`)
+### Assistente "Pergunte aos dados" (LLM via OpenRouter, `src/ai`)
 
-O que faz: o Claude escreve a SQL a partir da pergunta, consulta o banco por uma ferramenta e responde em português, mostrando a SQL.
-Por que: o laço de ferramenta deixa o modelo corrigir as próprias consultas, e o controle da execução fica no código do projeto. A validação com sqlglot entende a estrutura da SQL, em vez de procurar palavras proibidas.
-Alternativas: LangChain ou LlamaIndex (mais camadas para um único laço), validação por expressão regular (fácil de contornar), deixar o modelo responder sem consultar (inventaria números).
+O que faz: um modelo de linguagem (Claude Haiku 5.5) escreve a SQL a partir da pergunta, consulta o banco por uma ferramenta e responde em português, mostrando a SQL.
+Por que: o laço de ferramenta deixa o modelo corrigir as próprias consultas, e o controle da execução fica no código do projeto. A validação com sqlglot entende a estrutura da SQL, em vez de procurar palavras proibidas. O OpenRouter dá acesso a vários modelos na mesma API, com limite de gasto por chave, o que permite publicar o assistente com uma chave de demonstração.
+Alternativas: a API direta de um fornecedor (prende a um modelo), LangChain ou LlamaIndex (mais camadas para um único laço), validação por expressão regular (fácil de contornar), deixar o modelo responder sem consultar (inventaria números).
 
 ## Engenharia
 
@@ -127,6 +127,12 @@ Alternativas: LangChain ou LlamaIndex (mais camadas para um único laço), valid
 O que faz: um comando sobe PostgreSQL, MongoDB, pipeline, treino e dashboard; o Makefile dá atalhos para cada etapa.
 Por que: qualquer pessoa roda o projeto sem instalar Python nem bancos.
 Alternativas: ambiente virtual local (depende da máquina), Kubernetes (desnecessário para uma máquina).
+
+### Publicação (Streamlit Community Cloud e Neon)
+
+O que faz: o painel roda no Streamlit Community Cloud e lê um PostgreSQL no Neon, carregado pelo mesmo pipeline com `DATABASE_URL` apontando para lá. O modelo fica em `ops.model_artifacts`, e as chaves, nos secrets do servidor.
+Por que: os dois têm camada gratuita, e o Streamlit precisa de um servidor contínuo com websocket, que é o que o Streamlit Cloud oferece.
+Alternativas: Vercel (só funções curtas, não roda Streamlit), Railway (cobra por uso), Render (banco gratuito expira), Hugging Face Spaces (exige conta e imagem própria).
 
 ### Testes, lint e integração contínua (pytest, ruff, GitHub Actions)
 
