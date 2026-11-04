@@ -1,9 +1,11 @@
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
 from src.dashboard.data import fmt_int, fmt_pct, load_tickets, sidebar_filters
-from src.dashboard.style import SERIES, style
+from src.dashboard.style import ACCENT, BLUE_SCALE, NEUTRAL, SERIES, show
+from src.dashboard.ui import Stat, header, note, section, stats
 
 all_tickets = load_tickets()
 with st.sidebar:
@@ -13,102 +15,192 @@ tickets = sidebar_filters(all_tickets)
 if year != "Todos":
     tickets = tickets[tickets["opened_on"].dt.year == year]
 resolved = tickets[~tickets["is_open"]]
+if resolved.empty:
+    st.info("Nenhum chamado atendido com esses filtros.")
+    st.stop()
 
-st.title("Gerencial: desempenho por serviço")
-st.caption(
-    "Para a gestão da Emlurb: quanto chega, quanto é atendido e em quanto tempo, por grupo de "
-    "serviço e região. Tempos medidos só nos chamados já atendidos."
-)
-
-columns = st.columns(4)
-columns[0].metric("Chamados no período", fmt_int(len(tickets)))
-columns[1].metric("Atendidos", fmt_pct(100 * len(resolved) / max(len(tickets), 1)))
-columns[2].metric(
-    "Mediana até o atendimento", f"{resolved['days_to_last_update'].median():.0f} dias"
-)
-columns[3].metric(
-    "Atendidos em até 7 dias", fmt_pct(100 * (resolved["days_to_last_update"] <= 7).mean())
-)
-
-st.subheader("Indicadores por grupo de serviço")
 indicators = (
-    tickets.groupby("group_name")
+    tickets.groupby("group", observed=True)
     .agg(tickets=("ticket_id", "size"), open_tickets=("is_open", "sum"))
     .join(
-        resolved.groupby("group_name")["days_to_last_update"].agg(
+        resolved.groupby("group", observed=True)["days_to_last_update"].agg(
             median_days="median",
             p90_days=lambda days: days.quantile(0.9),
             within_7_days=lambda days: 100 * (days <= 7).mean(),
         )
     )
-    .assign(pct_resolved=lambda df: 100 * (1 - df["open_tickets"] / df["tickets"]))
+    .assign(resolved_share=lambda df: 100 * (1 - df["open_tickets"] / df["tickets"]))
     .sort_values("tickets", ascending=False)
-    .reset_index()
 )
+ranked = indicators[indicators["tickets"] >= 1000].dropna().sort_values("median_days")
+if ranked.empty:
+    ranked = indicators.dropna().sort_values("median_days")
+# The headline compares the groups that carry most of the demand
+headline = indicators[indicators["tickets"] >= 5000].dropna().sort_values("median_days")
+if headline.empty:
+    headline = ranked
+fastest, slowest = headline.index[0], headline.index[-1]
+
+header(
+    "Gestão",
+    f"{fastest} resolve em {headline['median_days'].iloc[0]:.0f} dias; "
+    f"{slowest.lower()} leva {headline['median_days'].iloc[-1]:.0f}",
+    "Para a gestão da Emlurb: quanto chega, quanto é atendido e em quanto tempo, por grupo de "
+    "serviço e por região. Os tempos são medidos só nos chamados já atendidos.",
+)
+stats(
+    [
+        Stat(fmt_int(len(tickets)), "chamados no período"),
+        Stat(fmt_pct(100 * len(resolved) / len(tickets)), "atendidos"),
+        Stat(f"{resolved['days_to_last_update'].median():.0f} dias", "mediana até o atendimento"),
+        Stat(
+            fmt_pct(100 * (resolved["days_to_last_update"] <= 7).mean()),
+            "atendidos em até uma semana",
+        ),
+    ]
+)
+
+section(
+    "O tipo de serviço decide se a espera é de dias ou de meses",
+    "Ponto: mediana de dias até o atendimento. Linha: vai até o tempo em que 9 de cada 10 "
+    "chamados já tinham sido atendidos. Grupos com pelo menos mil chamados.",
+)
+order = list(ranked.index)
+fig = go.Figure()
+for group, row in ranked.iterrows():
+    fig.add_shape(
+        type="line",
+        x0=row["median_days"],
+        x1=row["p90_days"],
+        y0=group,
+        y1=group,
+        line={"color": NEUTRAL, "width": 2},
+    )
+fig.add_scatter(
+    x=ranked["p90_days"],
+    y=order,
+    mode="markers",
+    marker={"color": NEUTRAL, "size": 8},
+    name="9 em cada 10",
+    hovertemplate="%{y}: 9 em cada 10 em até %{x:.0f} dias<extra></extra>",
+)
+fig.add_scatter(
+    x=ranked["median_days"],
+    y=order,
+    mode="markers",
+    marker={"color": ACCENT, "size": 11},
+    name="Mediana",
+    hovertemplate="%{y}: mediana de %{x:.0f} dias<extra></extra>",
+)
+fig.update_xaxes(
+    title="Dias até o atendimento", showgrid=True, gridcolor="#e9e7e2", rangemode="tozero"
+)
+fig.update_yaxes(
+    showline=False, gridcolor="rgba(0,0,0,0)", categoryorder="array", categoryarray=order[::-1]
+)
+show(fig, height=max(280, 34 * len(order)))
+
+left, right = st.columns(2, gap="large")
+with left:
+    top_groups = indicators.index[:6]
+    by_rpa = (
+        resolved[resolved["group"].isin(top_groups)]
+        .groupby(["group", "rpa"], observed=True)["days_to_last_update"]
+        .median()
+        .unstack()
+        .reindex(top_groups)
+    )
+    spread = (by_rpa.max(axis=1) / by_rpa.min(axis=1).clip(lower=1)).dropna()
+    widest = spread.idxmax() if len(spread) else top_groups[0]
+    section(
+        f"Em {widest.lower()}, a região muda a espera de {by_rpa.loc[widest].min():.0f} para "
+        f"{by_rpa.loc[widest].max():.0f} dias",
+        "Mediana de dias até o atendimento por RPA, nos seis grupos com mais chamados. Quanto "
+        "mais escuro, mais longa a espera.",
+    )
+    fig = px.imshow(
+        by_rpa,
+        text_auto=".0f",
+        aspect="auto",
+        color_continuous_scale=BLUE_SCALE,
+        labels={"x": "", "y": "", "color": "Dias"},
+    )
+    fig.update_traces(hovertemplate="%{y}, RPA %{x}: %{z:.0f} dias<extra></extra>", xgap=2, ygap=2)
+    fig.update_xaxes(
+        tickvals=list(by_rpa.columns),
+        ticktext=[f"RPA {int(r)}" for r in by_rpa.columns],
+        showline=False,
+        side="top",
+    )
+    fig.update_yaxes(showline=False)
+    fig.update_layout(coloraxis_showscale=False)
+    show(fig, height=330)
+
+with right:
+    opened = tickets.groupby(tickets["opened_on"].dt.to_period("M")).size()
+    closed = resolved.groupby(resolved["status_updated_on"].dt.to_period("M")).size()
+    monthly = pd.concat([opened.rename("Abertos"), closed.rename("Atendidos")], axis=1).fillna(0)
+    monthly = monthly[monthly.index <= opened.index.max()]
+    more_in = int((monthly["Abertos"] > monthly["Atendidos"]).sum())
+    section(
+        f"Em {more_in} de {len(monthly)} meses entrou mais chamado do que saiu",
+        "Chamados abertos e atendidos em cada mês. Enquanto a linha de abertos fica por cima, "
+        "a fila cresce.",
+    )
+    monthly.index = monthly.index.to_timestamp()
+    fig = go.Figure()
+    for name, color in [("Abertos", SERIES[1]), ("Atendidos", ACCENT)]:
+        fig.add_scatter(
+            x=monthly.index,
+            y=monthly[name],
+            name=name,
+            mode="lines",
+            line={"color": color, "width": 2},
+            hovertemplate="%{x|%m/%Y}: %{y:,.0f}<extra>" + name + "</extra>",
+        )
+        fig.add_annotation(
+            x=monthly.index[-1],
+            y=monthly[name].iloc[-1],
+            text=name,
+            showarrow=False,
+            xanchor="left",
+            xshift=6,
+            yshift=8 if name == "Abertos" else -8,
+            font={"color": color, "size": 12},
+        )
+    fig.update_xaxes(tickformat="%m/%y")
+    fig.update_yaxes(rangemode="tozero", tickformat=",")
+    fig.update_layout(showlegend=False, margin={"r": 70})
+    show(fig, height=330)
+
+section("Indicadores por grupo de serviço", "A tabela com todos os grupos, para consulta.")
 st.dataframe(
-    indicators,
+    indicators.reset_index(),
     hide_index=True,
     column_order=[
-        "group_name",
+        "group",
         "tickets",
-        "pct_resolved",
+        "resolved_share",
         "median_days",
         "p90_days",
         "within_7_days",
         "open_tickets",
     ],
     column_config={
-        "group_name": st.column_config.TextColumn("Grupo"),
+        "group": st.column_config.TextColumn("Grupo"),
         "tickets": st.column_config.NumberColumn("Chamados", format="localized"),
-        "pct_resolved": st.column_config.ProgressColumn(
-            "% atendidos", format="%.0f%%", min_value=0, max_value=100
+        "resolved_share": st.column_config.ProgressColumn(
+            "Atendidos", format="%.0f%%", min_value=0, max_value=100
         ),
         "median_days": st.column_config.NumberColumn("Mediana (dias)", format="%.0f"),
         "p90_days": st.column_config.NumberColumn(
-            "P90 (dias)", format="%.0f", help="9 em cada 10 atendidos levaram até isso"
+            "9 em 10 até (dias)", format="%.0f", help="90º percentil do tempo de atendimento"
         ),
-        "within_7_days": st.column_config.NumberColumn("% em até 7 dias", format="%.0f%%"),
+        "within_7_days": st.column_config.NumberColumn("Em até 7 dias", format="%.0f%%"),
         "open_tickets": st.column_config.NumberColumn("Em aberto", format="localized"),
     },
 )
-
-left, right = st.columns(2)
-with left:
-    st.subheader("Abertos e atendidos por mês")
-    opened = tickets.groupby(tickets["opened_on"].dt.to_period("M")).size().rename("Abertos")
-    closed = resolved.groupby(resolved["status_updated_on"].dt.to_period("M")).size()
-    monthly = pd.concat([opened, closed.rename("Atendidos")], axis=1).fillna(0)
-    monthly.index = monthly.index.to_timestamp()
-    plot_data = monthly.reset_index(names="month").melt(
-        id_vars="month", var_name="series", value_name="tickets"
-    )
-    fig = px.line(plot_data, x="month", y="tickets", color="series", color_discrete_sequence=SERIES)
-    fig.update_traces(
-        line_width=2, hovertemplate="%{x|%m/%Y}: %{y:,.0f}<extra>%{fullData.name}</extra>"
-    )
-    fig.update_xaxes(title=None, tickformat="%m/%Y")
-    fig.update_yaxes(title="Chamados", rangemode="tozero", tickformat=",")
-    st.plotly_chart(style(fig))
-
-with right:
-    st.subheader("Mediana de dias até o atendimento por RPA")
-    top_groups = indicators["group_name"].head(6)
-    by_rpa = (
-        resolved[resolved["group_name"].isin(top_groups)]
-        .groupby(["group_name", "rpa"])["days_to_last_update"]
-        .median()
-        .unstack()
-        .reindex(top_groups)
-    )
-    fig = px.imshow(
-        by_rpa,
-        text_auto=".0f",
-        aspect="auto",
-        color_continuous_scale="Blues",
-        labels={"x": "RPA", "y": "", "color": "Dias"},
-    )
-    fig.update_traces(hovertemplate="%{y}, RPA %{x}: %{z:.0f} dias<extra></extra>")
-    fig.update_xaxes(
-        tickvals=list(by_rpa.columns), ticktext=[f"RPA {int(r)}" for r in by_rpa.columns]
-    )
-    st.plotly_chart(style(fig))
+note(
+    "Tempo de atendimento: dias entre a abertura e a última mudança de situação. Onde a fila é "
+    "grande, ele subestima a espera real, porque os casos mais demorados ainda não terminaram."
+)

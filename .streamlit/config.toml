@@ -1,5 +1,26 @@
 [theme]
+base = "light"
 primaryColor = "#2a78d6"
+backgroundColor = "#fcfcfb"
+secondaryBackgroundColor = "#f3f2ee"
+textColor = "#1b1b1a"
+borderColor = "#e6e4df"
+linkColor = "#1c5cab"
+linkUnderline = false
+baseRadius = "8px"
+showWidgetBorder = true
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap, sans-serif"
+headingFontWeights = [700, 600, 600, 600, 600, 600]
+dataframeHeaderBackgroundColor = "#f3f2ee"
+chartCategoricalColors = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
+
+[theme.sidebar]
+backgroundColor = "#f3f2ee"
+secondaryBackgroundColor = "#ffffff"
+showSidebarBorder = true
+
+[client]
+toolbarMode = "viewer"
 
 [browser]
 gatherUsageStats = false
