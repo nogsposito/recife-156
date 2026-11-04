@@ -104,3 +104,52 @@ def save_quality_checks(engine: Engine, run_id: int, results: list) -> None:
             ),
             rows,
         )
+
+
+def save_source_versions(engine: Engine, run_id: int, manifest: dict) -> None:
+    rows = [
+        {
+            "run_id": run_id,
+            "source": source,
+            "version": entry.get("version") or entry.get("end"),
+            "sha256": entry.get("sha256"),
+            "rows": entry.get("rows"),
+            "ingested_at": entry.get("ingested_at"),
+        }
+        for source, entry in sorted(manifest.items())
+    ]
+    if not rows:
+        return
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO ops.source_versions "
+                "(run_id, source, version, sha256, rows, ingested_at) "
+                "VALUES (:run_id, :source, :version, :sha256, :rows, :ingested_at)"
+            ),
+            rows,
+        )
+
+
+def save_model_artifact(engine: Engine, name: str, payload: bytes) -> None:
+    with engine.begin() as connection:
+        connection.connection.driver_connection.execute(_sql("ops.sql"))
+        connection.execute(
+            text(
+                "INSERT INTO ops.model_artifacts (name, artifact) VALUES (:name, :payload) "
+                "ON CONFLICT (name) DO UPDATE "
+                "SET artifact = EXCLUDED.artifact, trained_at = now()"
+            ),
+            {"name": name, "payload": payload},
+        )
+
+
+def load_model_artifact(engine: Engine, name: str) -> bytes | None:
+    with engine.connect() as connection:
+        exists = connection.execute(text("SELECT to_regclass('ops.model_artifacts')")).scalar()
+        if exists is None:
+            return None
+        row = connection.execute(
+            text("SELECT artifact FROM ops.model_artifacts WHERE name = :name"), {"name": name}
+        ).first()
+    return bytes(row[0]) if row else None

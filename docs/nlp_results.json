@@ -1,0 +1,42 @@
+{
+  "original": {
+    "Caracteres (TF-IDF) + regressão logística": {
+      "accuracy": 0.7792207792207793,
+      "ticket_accuracy": 0.9744031896791617,
+      "f1_macro": 0.6199454140630611,
+      "f1_weighted": 0.7705072705072705
+    },
+    "Embeddings (transformer) + regressão logística": {
+      "accuracy": 0.5974025974025974,
+      "ticket_accuracy": 0.9073181969553892,
+      "f1_macro": 0.44668577036998086,
+      "f1_weighted": 0.6290763349204908
+    },
+    "Embeddings: serviço atual mais parecido": {
+      "accuracy": 0.6753246753246753,
+      "ticket_accuracy": 0.5982336330500395,
+      "f1_macro": 0.4986060236060236,
+      "f1_weighted": 0.6802110587824874
+    }
+  },
+  "com reparo": {
+    "Caracteres (TF-IDF) + regressão logística": {
+      "accuracy": 0.7662337662337663,
+      "ticket_accuracy": 0.9729433822825001,
+      "f1_macro": 0.6144515993996962,
+      "f1_weighted": 0.7540403384941201
+    },
+    "Embeddings (transformer) + regressão logística": {
+      "accuracy": 0.5974025974025974,
+      "ticket_accuracy": 0.9073181969553892,
+      "f1_macro": 0.44668577036998086,
+      "f1_weighted": 0.6290763349204908
+    },
+    "Embeddings: serviço atual mais parecido": {
+      "accuracy": 0.6883116883116883,
+      "ticket_accuracy": 0.940636019835133,
+      "f1_macro": 0.5071935326837287,
+      "f1_weighted": 0.6965891251605537
+    }
+  }
+}

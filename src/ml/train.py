@@ -1,3 +1,4 @@
+import io
 import logging
 from datetime import UTC, datetime
 
@@ -15,7 +16,7 @@ from sklearn.metrics import (
 )
 
 from src.config import DOCS_DIR, PROJECT_ROOT
-from src.db.load import get_engine
+from src.db.load import get_engine, save_model_artifact
 from src.ml.features import (
     CATEGORICAL,
     FEATURES,
@@ -32,6 +33,7 @@ from src.ml.features import (
 log = logging.getLogger("train")
 
 MODEL_PATH = PROJECT_ROOT / "models" / "resolution_30d.joblib"
+MODEL_NAME = MODEL_PATH.stem
 REPORT_PATH = DOCS_DIR / "ml_results.md"
 START_MARK, END_MARK = "<!-- ml:start -->", "<!-- ml:end -->"
 RANDOM_STATE = 42
@@ -60,6 +62,41 @@ def evaluate(y_true: pd.Series, chance: np.ndarray) -> dict[str, float]:
         "alert_precision": precision_score(late, alert, zero_division=0),
         "alert_recall": recall_score(late, alert, zero_division=0),
     }
+
+
+# Mean predicted chance against the share actually resolved, in ten bins of predicted chance
+def calibration_table(y_true: pd.Series, chance: np.ndarray) -> pd.DataFrame:
+    frame = pd.DataFrame({"predicted": chance, "observed": y_true.to_numpy()})
+    frame["bin"] = pd.cut(frame["predicted"], np.linspace(0, 1, 11), include_lowest=True)
+    return (
+        frame.groupby("bin", observed=True)
+        .agg(
+            predicted=("predicted", "mean"), observed=("observed", "mean"), tickets=("bin", "size")
+        )
+        .reset_index(drop=True)
+    )
+
+
+# Brier score of the service history and of the model inside each service group
+def error_by_group(
+    groups: pd.Series, y_true: pd.Series, history: np.ndarray, chance: np.ndarray
+) -> pd.DataFrame:
+    frame = pd.DataFrame(
+        {
+            "group": groups.to_numpy(),
+            "history": (history - y_true.to_numpy()) ** 2,
+            "model": (chance - y_true.to_numpy()) ** 2,
+        }
+    )
+    return (
+        frame.groupby("group")
+        .agg(
+            tickets=("model", "size"),
+            history_brier=("history", "mean"),
+            model_brier=("model", "mean"),
+        )
+        .reset_index()
+    )
 
 
 # Fits two baselines and the model on the past and scores all three on the test months
@@ -120,6 +157,13 @@ def fit_and_evaluate(tickets: pd.DataFrame, rain: pd.DataFrame, split: TemporalS
         "positive_rate": {"train": float(y_train.mean()), "test": float(y_test.mean())},
         "results": results,
         "importances": importances,
+        "calibration": calibration_table(y_test, model_chance),
+        "error_by_group": error_by_group(
+            features.loc[test, "group_name"],
+            y_test,
+            baselines["Histórico do serviço"],
+            model_chance,
+        ),
         "test_frame": features[test].assign(**{"actual": y_test, "model_chance": model_chance}),
     }
 
@@ -165,7 +209,10 @@ def save(run: dict) -> None:
     artifact = {key: value for key, value in run.items() if key != "test_frame"}
     artifact["trained_at"] = datetime.now(UTC).isoformat(timespec="seconds")
     joblib.dump(artifact, MODEL_PATH)
-    log.info("Model saved to %s", MODEL_PATH)
+    buffer = io.BytesIO()
+    joblib.dump(artifact, buffer, compress=3)
+    save_model_artifact(get_engine(), MODEL_NAME, buffer.getvalue())
+    log.info("Model saved to %s and to ops.model_artifacts", MODEL_PATH)
 
     report = REPORT_PATH.read_text(encoding="utf-8")
     start, end = report.index(START_MARK) + len(START_MARK), report.index(END_MARK)

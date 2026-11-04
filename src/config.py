@@ -13,8 +13,16 @@ DOCS_DIR = PROJECT_ROOT / "docs"
 # Password of the read-only database user created for the text-to-SQL assistant
 ASSISTANT_DB_PASSWORD = os.getenv("ASSISTANT_DB_PASSWORD", "assistant")
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", "postgresql+psycopg://recife:recife@localhost:5433/recife156"
+
+def with_psycopg(url: str) -> str:
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg://" + url[len(prefix) :]
+    return url
+
+
+DATABASE_URL = with_psycopg(
+    os.getenv("DATABASE_URL", "postgresql+psycopg://recife:recife@localhost:5433/recife156")
 )
 
 # Files before 2024 use another coding scheme for services and have accents stripped

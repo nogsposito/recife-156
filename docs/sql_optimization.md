@@ -20,15 +20,15 @@ Os tempos são de uma máquina local com o banco no Docker e cerca de 200 mil ch
 
 | Consulta | Sem índice (ms) | Com índice (ms) | Ganho | Leitura de fact_tickets sem índice | Com índice |
 |---|---|---|---|---|---|
-| [Fila em aberto de um bairro, dos chamados mais antigos para os mais novos](../sql/benchmark/01_open_queue_by_neighborhood.sql) | 35,8 | 0,3 | 136,0x | Seq Scan | Index Scan (idx_fact_tickets_open_by_neighborhood) |
-| [Médias móveis de 7 e 28 dias de um serviço no semestre](../sql/benchmark/02_service_moving_average.sql) | 33,0 | 3,0 | 11,0x | Seq Scan | Index Scan (idx_fact_tickets_service_opened) |
-| [Chamados por dia e grupo, ao lado da chuva do dia](../sql/analyses/09_daily_tickets_and_rain.sql) | 345,5 | 315,4 | 1,1x | Seq Scan | Index Only Scan (idx_fact_tickets_service_opened) |
+| [Fila em aberto de um bairro, dos chamados mais antigos para os mais novos](../sql/benchmark/01_open_queue_by_neighborhood.sql) | 38,6 | 0,2 | 199,1x | Seq Scan | Index Scan (idx_fact_tickets_open_by_neighborhood) |
+| [Médias móveis de 7 e 28 dias de um serviço no semestre](../sql/benchmark/02_service_moving_average.sql) | 37,9 | 3,5 | 10,9x | Seq Scan | Index Scan (idx_fact_tickets_service_opened) |
+| [Chamados por dia e grupo, ao lado da chuva do dia](../sql/analyses/09_daily_tickets_and_rain.sql) | 337,1 | 332,7 | 1,0x | Seq Scan | Index Only Scan (idx_fact_tickets_service_opened) |
 
 Reescrita, com os índices criados:
 
 | Consulta | Primeira versão (ms) | Reescrita (ms) | Ganho |
 |---|---|---|---|
-| [Chamados por dia e grupo, ao lado da chuva do dia](../sql/analyses/09_daily_tickets_and_rain.sql) ([primeira versão](../sql/benchmark/03_daily_tickets_and_rain_join_first.sql)) | 784,3 | 315,4 | 2,5x |
+| [Chamados por dia e grupo, ao lado da chuva do dia](../sql/analyses/09_daily_tickets_and_rain.sql) ([primeira versão](../sql/benchmark/03_daily_tickets_and_rain_join_first.sql)) | 822,3 | 332,7 | 2,5x |
 <!-- benchmark:end -->
 
 ## O que os números mostram
