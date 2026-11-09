@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.dashboard.data import fmt_int, fmt_pct, load_tickets, sidebar_filters
-from src.dashboard.style import ACCENT, BLUE_SCALE, NEUTRAL, SERIES, show
+from src.dashboard.style import ACCENT, BLUE_SCALE, GRID, NEUTRAL, SERIES, ranked_bars, show
 from src.dashboard.ui import Stat, header, note, section, stats
 
 all_tickets = load_tickets()
@@ -63,7 +63,8 @@ stats(
 section(
     "O tipo de serviço decide se a espera é de dias ou de meses",
     "Ponto: mediana de dias até o atendimento. Linha: vai até o tempo em que 9 de cada 10 "
-    "chamados já tinham sido atendidos. Grupos com pelo menos mil chamados.",
+    "chamados já tinham sido atendidos. Grupos com pelo menos mil chamados. Clique num "
+    "grupo para abrir os serviços dele.",
 )
 order = list(ranked.index)
 fig = go.Figure()
@@ -92,13 +93,35 @@ fig.add_scatter(
     name="Mediana",
     hovertemplate="%{y}: mediana de %{x:.0f} dias<extra></extra>",
 )
-fig.update_xaxes(
-    title="Dias até o atendimento", showgrid=True, gridcolor="#e9e7e2", rangemode="tozero"
-)
+fig.update_xaxes(title="Dias até o atendimento", showgrid=True, gridcolor=GRID, rangemode="tozero")
 fig.update_yaxes(
     showline=False, gridcolor="rgba(0,0,0,0)", categoryorder="array", categoryarray=order[::-1]
 )
-show(fig, height=max(280, 34 * len(order)))
+event = show(fig, height=max(280, 34 * len(order)), key="groups_chart")
+picked = [point["y"] for point in event.selection.points] if event else []
+group = picked[0] if picked else slowest
+by_service = (
+    resolved[resolved["group"] == group]
+    .groupby("service", observed=True)["days_to_last_update"]
+    .agg(["median", "size"])
+    .sort_values("median", ascending=False)
+)
+enough = by_service[by_service["size"] >= 30]
+by_service = (enough if len(enough) else by_service).head(8)
+slow = by_service.index[0]
+section(
+    f"Em {group.lower()}, {slow.lower()} é o serviço mais lento: "
+    f"{by_service['median'].iloc[0]:.0f} dias",
+    "Mediana de dias até o atendimento de cada serviço do grupo, entre os que têm pelo menos 30 "
+    "chamados atendidos. Clique em outro grupo no gráfico acima para trocar.",
+)
+fig = ranked_bars(
+    list(by_service.index),
+    list(by_service["median"]),
+    [f"{value:.0f} dias" for value in by_service["median"]],
+    highlight={slow},
+)
+show(fig, height=max(200, 38 * len(by_service)))
 
 left, right = st.columns(2, gap="large")
 with left:
@@ -116,7 +139,7 @@ with left:
         f"Em {widest.lower()}, a região muda a espera de {by_rpa.loc[widest].min():.0f} para "
         f"{by_rpa.loc[widest].max():.0f} dias",
         "Mediana de dias até o atendimento por RPA, nos seis grupos com mais chamados. Quanto "
-        "mais escuro, mais longa a espera.",
+        "mais clara a célula, mais longa a espera.",
     )
     fig = px.imshow(
         by_rpa,

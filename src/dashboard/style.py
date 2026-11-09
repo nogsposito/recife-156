@@ -2,23 +2,25 @@ import plotly.graph_objects as go
 import plotly.io as pio
 import streamlit as st
 
-# Categorical slots in a fixed order, validated for color vision deficiency
-SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
+# Categorical slots in a fixed order, validated for color vision deficiency on the dark ground
+SERIES = ["#3d9be9", "#d95926", "#199e70", "#c98500"]
 ACCENT = SERIES[0]
-# Ordinal blue steps, light to dark, for ordered categories such as how long a ticket has waited
-SEQUENTIAL = ["#86b6ef", "#2a78d6", "#104281"]
-# Continuous blue ramp for heatmaps: the lightest step means "close to zero"
-BLUE_SCALE = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"]
+# Ordinal blue steps for ordered categories such as how long a ticket has waited: on a dark
+# ground the brightest step is the one that matters most
+SEQUENTIAL = ["#1f4f8a", "#3d9be9", "#a8d4fb"]
+# Continuous blue ramp for heatmaps: the darkest step means "close to zero"
+BLUE_SCALE = ["#132238", "#173a63", "#1f5a96", "#2f7cc7", "#4f9de6", "#86c0f5", "#c4e2ff"]
 # Diverging poles: more tickets than before (red) and fewer (blue)
-UP, DOWN = "#e34948", "#2a78d6"
+UP, DOWN = "#e66767", "#3d9be9"
 # Marks that give context but are not the point of the chart
-NEUTRAL = "#c8c6bf"
+NEUTRAL = "#353d4c"
 
-INK = "#1b1b1a"
-INK_2 = "#52514e"
-MUTED = "#8a8984"
-GRID = "#e9e7e2"
-FONT = "Inter, 'Segoe UI', system-ui, -apple-system, sans-serif"
+BACKGROUND = "#0a0d14"
+INK = "#e9edf3"
+INK_2 = "#b3bccb"
+MUTED = "#8891a1"
+GRID = "#1d2430"
+FONT = "Outfit, system-ui, -apple-system, sans-serif"
 
 pio.templates["recife"] = go.layout.Template(
     layout={
@@ -29,6 +31,7 @@ pio.templates["recife"] = go.layout.Template(
         "separators": ",.",
         "xaxis": {
             "showgrid": False,
+            "gridcolor": GRID,
             "zeroline": False,
             "showline": True,
             "linecolor": GRID,
@@ -52,10 +55,12 @@ pio.templates["recife"] = go.layout.Template(
             "font": {"size": 12},
         },
         "hoverlabel": {
-            "bgcolor": "#ffffff",
-            "bordercolor": GRID,
+            "bgcolor": "#131824",
+            "bordercolor": "#2a3242",
             "font": {"family": FONT, "size": 13, "color": INK},
         },
+        # Bars and lines glide to their new values when a filter changes
+        "transition": {"duration": 450, "easing": "cubic-in-out"},
         "bargap": 0.35,
         "barcornerradius": 4,
         "margin": {"l": 8, "r": 8, "t": 36, "b": 8},
@@ -121,5 +126,13 @@ def ranked_bars(
     return fig
 
 
-def show(fig: go.Figure, height: int = 360) -> None:
-    st.plotly_chart(style(fig, height), theme=None, config={"displayModeBar": False})
+# With `key`, a click on a mark reruns the page and the selected points come back
+def show(fig: go.Figure, height: int = 360, key: str | None = None):
+    return st.plotly_chart(
+        style(fig, height),
+        theme=None,
+        config={"displayModeBar": False},
+        key=key,
+        on_select="rerun" if key else "ignore",
+        selection_mode="points",
+    )

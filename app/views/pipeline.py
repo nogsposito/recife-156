@@ -138,7 +138,7 @@ with right:
         parts = versions["source"].str.split("/", expand=True)
         versions = versions.assign(
             name=parts[0].map(SOURCE_LABELS).fillna(parts[0]) + " " + parts[1],
-            hash=versions["sha256"].str[:12],
+            hash=versions["sha256"].str[:12].fillna("-"),
             version=pd.to_datetime(versions["version"], format="ISO8601").dt.strftime("%d/%m/%Y"),
         )
         st.dataframe(

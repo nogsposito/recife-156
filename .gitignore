@@ -23,3 +23,6 @@ Thumbs.db
 
 # Streamlit secrets (database URLs and API key of the hosted app)
 .streamlit/secrets.toml
+
+# Design skill working files
+.taste-skill/

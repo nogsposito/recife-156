@@ -1,23 +1,24 @@
 [theme]
-base = "light"
-primaryColor = "#2a78d6"
-backgroundColor = "#fcfcfb"
-secondaryBackgroundColor = "#f3f2ee"
-textColor = "#1b1b1a"
-borderColor = "#e6e4df"
-linkColor = "#1c5cab"
+base = "dark"
+primaryColor = "#5ab9fc"
+backgroundColor = "#0a0d14"
+secondaryBackgroundColor = "#131824"
+textColor = "#e9edf3"
+borderColor = "#232a38"
+linkColor = "#5ab9fc"
 linkUnderline = false
-baseRadius = "8px"
+baseRadius = "10px"
 showWidgetBorder = true
-font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap, sans-serif"
-headingFontWeights = [700, 600, 600, 600, 600, 600]
-dataframeHeaderBackgroundColor = "#f3f2ee"
-chartCategoricalColors = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
+showSidebarBorder = true
+font = "Outfit:https://fonts.googleapis.com/css2?family=Outfit:wght@400..700&display=swap, sans-serif"
+codeFont = "DM Mono:https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap, monospace"
+headingFontWeights = [500, 500, 500, 500, 500, 500]
+dataframeHeaderBackgroundColor = "#131824"
+chartCategoricalColors = ["#3d9be9", "#d95926", "#199e70", "#c98500"]
 
 [theme.sidebar]
-backgroundColor = "#f3f2ee"
-secondaryBackgroundColor = "#ffffff"
-showSidebarBorder = true
+backgroundColor = "#0d1119"
+secondaryBackgroundColor = "#131824"
 
 [client]
 toolbarMode = "viewer"

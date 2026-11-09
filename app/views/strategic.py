@@ -6,7 +6,7 @@ from plotly.subplots import make_subplots
 from src.analysis.weather_effect import pivot_daily, rainy_day_effect
 from src.dashboard.data import fmt_int, fmt_pct, load_daily_tickets_and_rain, load_tickets
 from src.dashboard.labels import sentence_label
-from src.dashboard.style import DOWN, SERIES, UP, ranked_bars, show
+from src.dashboard.style import DOWN, MUTED, SERIES, UP, ranked_bars, show
 from src.dashboard.ui import Stat, callout, header, note, section, stats
 
 MONTHS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
@@ -72,7 +72,7 @@ with left:
             hovertemplate="%{y}: %{x:+.1f}%<extra></extra>",
         )
     )
-    fig.add_vline(x=0, line_color="#b9b7b0", line_width=1)
+    fig.add_vline(x=0, line_color=MUTED, line_width=1)
     span = [min(change.min(), 0) * 1.35 - 4, max(change.max(), 0) * 1.25 + 4]
     fig.update_xaxes(visible=False, range=span)
     fig.update_yaxes(showline=False, gridcolor="rgba(0,0,0,0)")

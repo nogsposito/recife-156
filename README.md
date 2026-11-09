@@ -174,16 +174,16 @@ O painel está publicado em [recife-156.streamlit.app](https://recife-156.stream
 
 | Página | O que responde |
 |---|---|
-| [Visão geral](docs/img/dashboard_overview.png) | Os três achados principais e o caminho dos dados do portal até o banco |
+| [Visão geral](docs/img/dashboard_overview.png) | Os três achados principais, um mapa 3D da fila em aberto filtrável por grupo e o caminho dos dados do portal até o banco |
 | [A fila hoje](docs/img/dashboard_operational.png) | O que chegou nos últimos dias, o ritmo da semana e onde a fila está parada, por bairro e serviço |
-| [Tempo de atendimento](docs/img/dashboard_managerial.png) | Quanto cada grupo de serviço espera, como a região muda a espera e se entra mais do que sai |
+| [Tempo de atendimento](docs/img/dashboard_managerial.png) | Quanto cada grupo de serviço espera (um clique no grupo abre os serviços dele), como a região muda a espera e se entra mais do que sai |
 | [Tendência e chuva](docs/img/dashboard_strategic.png) | Variação entre anos, sazonalidade e efeito da chuva forte por serviço, com teste estatístico |
 | [Previsão de atraso](docs/img/dashboard_predictions.png) | Validação temporal, comparação com alternativas simples, onde o modelo ganha, calibração, fila de agora e simulador |
 | [Histórico com NLP](docs/img/dashboard_history.png) | Comparação dos métodos, efeito do reparo de texto e o de-para completo das descrições antigas |
 | [Pergunte aos dados](docs/img/dashboard_assistant.png) | O assistente, com a SQL sempre visível |
 | [Pipeline e qualidade](docs/img/dashboard_pipeline.png) | Checagens da última carga, versão de cada fonte, histórico de execuções e o ganho dos índices |
 
-As cores seguem uma paleta categórica validada para daltonismo; os nomes, que nos dados abertos vêm em maiúsculas e sem acento, ganham acentos só na tela.
+O tema é escuro, com uma paleta categórica validada para daltonismo sobre esse fundo. Os títulos entram com uma animação curta, os números contam até o valor e os gráficos deslizam para os novos valores quando um filtro muda. Os nomes, que nos dados abertos vêm em maiúsculas e sem acento, ganham acentos só na tela.
 
 ![Página de previsão de atraso](docs/img/dashboard_predictions.png)
 

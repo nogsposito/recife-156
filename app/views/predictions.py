@@ -186,7 +186,7 @@ gap = 100 * (reliable["observed"] - reliable["predicted"]).abs().max()
 left, right = st.columns([2, 3], gap="large")
 with left:
     section(
-        f"As chances são confiáveis: previsto e observado ficam a até {gap:.0f} pontos",
+        f"A chance prevista fica a até {gap:.0f} pontos da taxa real de atendimento",
         "Cada ponto junta os chamados do teste com chance prevista parecida. Na diagonal, a "
         "chance prevista é igual à taxa de atendimento real.",
     )
