@@ -9,10 +9,12 @@ from src.dashboard.data import (
     load_doc_json,
     load_layer_sizes,
     load_model,
+    load_open_points,
     load_pipeline_runs,
     load_quality_checks,
     load_tickets,
 )
+from src.dashboard.maps import queue_map
 from src.dashboard.style import ACCENT, INK, ranked_bars, show
 from src.dashboard.ui import Stat, Step, flow, header, note, section, stats
 
@@ -42,10 +44,25 @@ stats(
     ]
 )
 
-section(
-    "O que os dados mostram",
-    "Três achados que guiam o resto do painel. Cada um tem uma página com o detalhe e os filtros.",
-)
+points = load_open_points()
+# The title depends on the group picked below it, so it is filled after the choice
+title_area = st.container()
+groups = ["Todos", *points["group"].value_counts().head(5).index]
+chosen = st.pills("Grupo no mapa", groups, default="Todos", label_visibility="collapsed")
+shown = points if chosen in (None, "Todos") else points[points["group"] == chosen]
+by_rpa = shown["rpa"].value_counts(normalize=True)
+first, second = by_rpa.index[:2]
+with title_area:
+    section(
+        f"{fmt_pct(100 * by_rpa.iloc[:2].sum(), 0)} da fila mapeada fica nas RPAs "
+        f"{int(first)} e {int(second)}",
+        "Cada coluna soma os chamados em aberto num raio de 260 m: quanto mais alta e clara, mais "
+        f"pedidos esperando. Entram os {fmt_pct(100 * len(points) / tickets['is_open'].sum(), 0)} "
+        "da fila que têm coordenadas. Arraste para girar o mapa.",
+    )
+queue_map(shown)
+
+section("O que os dados mostram")
 columns = st.columns(3, gap="medium")
 
 with columns[0], st.container(border=True):
@@ -109,7 +126,7 @@ with columns[2], st.container(border=True):
             mode="lines",
             line={"color": ACCENT, "width": 2},
             fill="tozeroy",
-            fillcolor="rgba(42,120,214,0.08)",
+            fillcolor="rgba(61,155,233,0.14)",
             hovertemplate="%{x|%m/%Y}: %{y:,.0f} em aberto<extra></extra>",
         )
     )

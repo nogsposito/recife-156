@@ -39,6 +39,19 @@ def load_tickets() -> pd.DataFrame:
     return tickets
 
 
+# Open tickets that have coordinates, for the map of the queue
+@st.cache_data(ttl=3600)
+def load_open_points() -> pd.DataFrame:
+    points = _read(
+        "SELECT f.latitude, f.longitude, s.group_name, n.rpa, f.opened_on "
+        "FROM fact_tickets f JOIN dim_service s USING (service_code) "
+        "LEFT JOIN dim_neighborhood n USING (neighborhood_id) "
+        "WHERE f.is_open AND f.latitude IS NOT NULL"
+    )
+    points["group"] = _labels(points["group_name"], sentence_label)
+    return points
+
+
 @st.cache_data(ttl=3600)
 def load_rain() -> pd.DataFrame:
     rain = _read("SELECT date_key, precipitation_mm FROM dim_date")
