@@ -2,9 +2,11 @@
 
 [![CI](https://github.com/nogsposito/recife-156/actions/workflows/ci.yml/badge.svg)](https://github.com/nogsposito/recife-156/actions/workflows/ci.yml)
 
-Quem mora no Recife e encontra um poste apagado, uma árvore caindo ou uma galeria entupida pede o conserto pelo 156, a central de atendimento da prefeitura. Cada pedido vira um chamado, que a Emlurb (Empresa de Manutenção e Limpeza Urbana) executa e marca como atendido. A prefeitura publica esses chamados como dados abertos.
+O projeto analisa os chamados registrados no 156 da Emlurb, canal pelo qual os moradores do Recife solicitam serviços como reparos na iluminação pública, limpeza urbana, poda de árvores, drenagem e pavimentação. A ideia é transformar esses registros em informações que ajudem a entender melhor os problemas da cidade, identificar padrões nos atendimentos e prever quais solicitações têm maior chance de serem resolvidas em até 30 dias.
 
-Este repositório transforma esses arquivos em respostas para quem gere os serviços: onde a demanda se concentra, quanto tempo cada pedido espera, se a fila cresce, se a chuva antecipa picos e quais chamados recém-abertos devem passar de 30 dias. Para isso há um pipeline em camadas, um banco analítico em PostgreSQL, análises em SQL e notebooks, um modelo de classificação, NLP para recuperar o histórico antigo e um painel com um assistente que responde perguntas em português gerando SQL.
+Para isso, reuni dados abertos da Prefeitura do Recife e informações sobre a chuva na cidade. Organizei e validei esses dados em diferentes etapas, armazenando tanto os registros originais quanto as informações já tratadas para análise. A partir daí, construí um banco de dados estruturado, realizamos análises com SQL, desenvolvemos um modelo de machine learning para prever o prazo de atendimento e utilizamos técnicas de processamento de linguagem natural (NLP) para padronizar descrições de serviços registradas ao longo de 14 anos.
+
+Por fim, o projeto disponibiliza dashboards com informações direcionadas a diferentes públicos e um assistente inteligente que permite fazer perguntas sobre os dados em português e obter respostas por meio de consultas SQL.
 
 Painel: [recife-156.streamlit.app](https://recife-156.streamlit.app)
 
