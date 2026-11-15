@@ -47,6 +47,10 @@ h1, h2, h3 {{ letter-spacing: -0.02em; color: {INK}; }}
 }}
 
 .r-section {{ margin: 2.2rem 0 0.3rem; }}
+.r-panel-title {{
+    font-size: 1.7rem; font-weight: 500; letter-spacing: -0.03em; margin: 0 0 .2rem;
+    animation: r-up .4s var(--r-ease-enter) both;
+}}
 .r-section h3 {{ font-size: 1.28rem; font-weight: 500; margin: 0 0 0.3rem; padding: 0; }}
 .r-section p {{
     color: {INK_2}; font-size: 0.95rem; line-height: 1.55; margin: 0; max-width: 78ch;
@@ -87,6 +91,17 @@ h1, h2, h3 {{ letter-spacing: -0.02em; color: {INK}; }}
 }}
 .r-c::after {{ content: counter(c); }}
 .r-c3::after {{ content: counter(c, r-pad3); }}
+
+.r-terms {{
+    display: grid; gap: 0.8rem; margin: 0.9rem 0 0.2rem; padding: 0;
+    grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+}}
+.r-term {{ border-top: 1px solid {LINE_STRONG}; padding-top: 0.6rem; margin: 0; }}
+.r-term-name {{
+    font-family: "DM Mono", ui-monospace, monospace; font-size: 0.74rem; color: {ACCENT_UI};
+    letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.25rem;
+}}
+.r-term-text {{ margin: 0; color: {INK_2}; font-size: 0.88rem; line-height: 1.5; }}
 
 .r-callout {{
     border-left: 2px solid {ACCENT_UI}; background: rgba(90, 185, 252, .07);
@@ -246,3 +261,20 @@ def flow(steps: list[Step]) -> None:
         for index, step in enumerate(steps)
     )
     st.html(f'<div class="r-flow">{cards}</div>')
+
+
+def panel_heading(kicker: str, title: str) -> None:
+    st.html(
+        f'<p class="r-kicker" style="margin-top:.4rem">{escape(kicker)}</p>'
+        f'<h3 class="r-panel-title">{escape(title)}</h3>'
+    )
+
+
+# Short definitions for readers who do not know the city or the service
+def glossary(terms: list[tuple[str, str]]) -> None:
+    items = "".join(
+        f'<div class="r-term"><div class="r-term-name">{escape(term)}</div>'
+        f'<div class="r-term-text">{escape(text)}</div></div>'
+        for term, text in terms
+    )
+    st.html(f'<div class="r-terms">{items}</div>')

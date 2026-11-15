@@ -14,9 +14,26 @@ from src.dashboard.data import (
     load_quality_checks,
     load_tickets,
 )
+from src.dashboard.labels import rpa_label
 from src.dashboard.maps import queue_map
+from src.dashboard.neighborhoods import (
+    describe,
+    load_boundaries,
+    neighborhood_map,
+    neighborhood_stats,
+)
 from src.dashboard.style import ACCENT, INK, ranked_bars, show
-from src.dashboard.ui import Stat, Step, flow, header, note, section, stats
+from src.dashboard.ui import (
+    Stat,
+    Step,
+    flow,
+    glossary,
+    header,
+    note,
+    panel_heading,
+    section,
+    stats,
+)
 
 tickets = load_tickets()
 reference = tickets["status_updated_on"].max()
@@ -44,23 +61,108 @@ stats(
     ]
 )
 
-points = load_open_points()
-# The title depends on the group picked below it, so it is filled after the choice
+section("O que cada termo quer dizer")
+glossary(
+    [
+        (
+            "156",
+            "Canal de atendimento da Prefeitura do Recife, por onde os moradores pedem serviços "
+            "na rua.",
+        ),
+        (
+            "Emlurb",
+            "Empresa de Manutenção e Limpeza Urbana do Recife. É quem executa os pedidos: "
+            "iluminação, limpeza, poda de árvores, drenagem e pavimentação.",
+        ),
+        (
+            "Chamado",
+            "Cada pedido registrado no 156. Fica em aberto até a Emlurb marcar como atendido.",
+        ),
+        (
+            "Fila",
+            f"Os chamados ainda em aberto em {reference:%d/%m/%Y}, a data mais recente dos dados "
+            "abertos.",
+        ),
+        (
+            "RPA",
+            "Região Político-Administrativa. A prefeitura agrupa os 94 bairros em 6 regiões: "
+            "Centro, Norte, Noroeste, Oeste, Sudoeste e Sul.",
+        ),
+    ]
+)
+
+# The title depends on the choices made below it, so it is filled after them
 title_area = st.container()
-groups = ["Todos", *points["group"].value_counts().head(5).index]
-chosen = st.pills("Grupo no mapa", groups, default="Todos", label_visibility="collapsed")
-shown = points if chosen in (None, "Todos") else points[points["group"] == chosen]
-by_rpa = shown["rpa"].value_counts(normalize=True)
-first, second = by_rpa.index[:2]
-with title_area:
-    section(
-        f"{fmt_pct(100 * by_rpa.iloc[:2].sum(), 0)} da fila mapeada fica nas RPAs "
-        f"{int(first)} e {int(second)}",
-        "Cada coluna soma os chamados em aberto num raio de 260 m: quanto mais alta e clara, mais "
-        f"pedidos esperando. Entram os {fmt_pct(100 * len(points) / tickets['is_open'].sum(), 0)} "
-        "da fila que têm coordenadas. Arraste para girar o mapa.",
-    )
-queue_map(shown)
+controls = st.columns([4, 1.3], vertical_alignment="center")
+open_groups = tickets.loc[tickets["is_open"], "group"].value_counts().head(5).index
+chosen = controls[0].pills(
+    "Grupo no mapa", ["Todos", *open_groups], default="Todos", label_visibility="collapsed"
+)
+view = controls[1].segmented_control(
+    "Visualização", ["Bairros", "Colunas 3D"], default="Bairros", label_visibility="collapsed"
+)
+all_groups = chosen in (None, "Todos")
+filtered = tickets if all_groups else tickets[tickets["group"] == chosen]
+
+if view == "Colunas 3D":
+    points = load_open_points()
+    shown = points if all_groups else points[points["group"] == chosen]
+    by_rpa = shown["rpa"].value_counts(normalize=True)
+    first, second = by_rpa.index[:2]
+    with title_area:
+        section(
+            f"{fmt_pct(100 * by_rpa.iloc[:2].sum(), 0)} da fila mapeada fica nas regiões "
+            f"{rpa_label(first)} e {rpa_label(second)}",
+            "Cada coluna soma os chamados em aberto num raio de 260 m: quanto mais alta e clara, "
+            f"mais pedidos esperando. Entram os "
+            f"{fmt_pct(100 * len(points) / tickets['is_open'].sum(), 0)} da fila que têm "
+            "coordenadas. Arraste para girar o mapa.",
+        )
+    queue_map(shown)
+else:
+    boundaries = load_boundaries()
+    places = {f["properties"]["name"]: f["properties"] for f in boundaries["features"]}
+    by_neighborhood = neighborhood_stats(filtered, reference, "group" if all_groups else "service")
+    leader = by_neighborhood["open_tickets"].idxmax()
+    with title_area:
+        section(
+            f"{places[leader]['label']} tem a maior fila: "
+            f"{fmt_int(by_neighborhood.loc[leader, 'open_tickets'])} chamados em aberto",
+            "Quanto mais claro o bairro, mais chamados esperando. Passe o mouse para ver o nome e "
+            "clique para abrir o resumo. O volume acompanha o tamanho do bairro; a espera, no "
+            "resumo, compara o bairro com a cidade nos mesmos serviços.",
+        )
+    open_filtered = filtered[filtered["is_open"]]
+    city_over_180 = ((reference - open_filtered["opened_on"]).dt.days > 180).mean()
+    map_column, panel_column = st.columns([3, 2], gap="large")
+    with map_column:
+        selected = neighborhood_map(boundaries, by_neighborhood, city_over_180, default=leader)
+    with panel_column:
+        place = places.get(selected, {"label": selected, "rpa": 0})
+        rpa = place["rpa"]
+        panel_heading(rpa_label(rpa) if rpa else "", place["label"])
+        if selected in by_neighborhood.index:
+            row = by_neighborhood.loc[selected]
+            stats(
+                [
+                    Stat(fmt_int(row["open_tickets"]), "chamados em aberto"),
+                    Stat(fmt_pct(100 * row["over_180"], 0), "há mais de seis meses"),
+                ]
+            )
+            st.markdown(describe(row, city_over_180))
+            by = "group" if all_groups else "service"
+            mix = open_filtered.loc[open_filtered["neighborhood_name"] == selected, by]
+            mix = mix.value_counts(normalize=True).head(4)
+            fig = ranked_bars(
+                list(mix.index),
+                list(100 * mix.values),
+                [fmt_pct(100 * value, 0) for value in mix.values],
+                highlight={mix.index[0]},
+                labels_above=True,
+            )
+            show(fig, height=40 + 44 * len(mix))
+        else:
+            st.markdown("Nenhum chamado em aberto neste bairro com esse filtro.")
 
 section("O que os dados mostram")
 columns = st.columns(3, gap="medium")

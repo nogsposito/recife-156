@@ -50,7 +50,10 @@ if results is not None:
     section(
         "Reparar as palavras quebradas leva a busca por similaridade de "
         f"{fmt_pct(100 * original, 0)} para {fmt_pct(100 * repaired, 0)} de acerto",
-        "Parte dos chamados antigos posta no grupo certo, por método, com o texto como veio no "
+        "N-gramas de caracteres comparam pedaços de 2 a 4 letras das palavras; embeddings são "
+        "vetores que um modelo de linguagem calcula para representar o sentido do texto. O "
+        "gráfico mostra a parte dos chamados antigos posta no grupo certo, por método, com o "
+        "texto como veio no "
         'arquivo e depois de restaurar as palavras que perderam letras ("LMPADA" vira '
         '"LAMPADA" quando a palavra completa existe no catálogo atual).',
     )

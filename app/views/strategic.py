@@ -127,7 +127,8 @@ title = "Chuva forte aumenta " + " e ".join(
 section(
     title if len(significant) else "A chuva forte não muda a demanda de forma clara",
     f"Chamados em {rainy_days} dias de chuva forte comparados com a média do mesmo dia da semana "
-    "no mesmo mês. Em azul, as diferenças estatisticamente claras (teste de Mann-Whitney, "
+    "no mesmo mês. Em azul, as diferenças grandes demais para serem acaso (teste de "
+    "Mann-Whitney, "
     "p < 0,05).",
 )
 plot = effect.sort_values("rainy_days_vs_normal_pct", ascending=False)

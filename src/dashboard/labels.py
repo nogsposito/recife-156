@@ -86,3 +86,12 @@ def place_label(name: str) -> str:
         label if raw in CONNECTORS and index else label[:1].upper() + label[1:]
         for index, (raw, label) in enumerate(words)
     )
+
+
+# The city hall splits Recife into six Regiões Político-Administrativas (RPAs), each a group of
+# neighborhoods; the number alone means little to someone from outside the city
+RPA_REGIONS = {1: "Centro", 2: "Norte", 3: "Noroeste", 4: "Oeste", 5: "Sudoeste", 6: "Sul"}
+
+
+def rpa_label(rpa: int) -> str:
+    return f"RPA {int(rpa)} · {RPA_REGIONS.get(int(rpa), '')}"

@@ -11,7 +11,9 @@ log = logging.getLogger(__name__)
 
 
 def get_engine() -> Engine:
-    return create_engine(DATABASE_URL)
+    # A hosted database (Neon) sleeps when idle and drops open connections; pre_ping swaps a
+    # dead pooled connection for a new one instead of failing the next query
+    return create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=300)
 
 
 def _sql(name: str) -> str:

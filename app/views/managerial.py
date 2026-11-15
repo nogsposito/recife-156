@@ -4,6 +4,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.dashboard.data import fmt_int, fmt_pct, load_tickets, sidebar_filters
+from src.dashboard.labels import rpa_label
 from src.dashboard.style import ACCENT, BLUE_SCALE, GRID, NEUTRAL, SERIES, ranked_bars, show
 from src.dashboard.ui import Stat, header, note, section, stats
 
@@ -62,7 +63,8 @@ stats(
 
 section(
     "O tipo de serviço decide se a espera é de dias ou de meses",
-    "Ponto: mediana de dias até o atendimento. Linha: vai até o tempo em que 9 de cada 10 "
+    "Ponto: mediana de dias até o atendimento (metade dos chamados levou menos que isso). "
+    "Linha: vai até o tempo em que 9 de cada 10 "
     "chamados já tinham sido atendidos. Grupos com pelo menos mil chamados. Clique num "
     "grupo para abrir os serviços dele.",
 )
@@ -138,7 +140,8 @@ with left:
     section(
         f"Em {widest.lower()}, a região muda a espera de {by_rpa.loc[widest].min():.0f} para "
         f"{by_rpa.loc[widest].max():.0f} dias",
-        "Mediana de dias até o atendimento por RPA, nos seis grupos com mais chamados. Quanto "
+        "Mediana de dias até o atendimento em cada RPA, as 6 regiões da cidade, nos seis grupos "
+        "com mais chamados. Quanto "
         "mais clara a célula, mais longa a espera.",
     )
     fig = px.imshow(
@@ -151,7 +154,7 @@ with left:
     fig.update_traces(hovertemplate="%{y}, RPA %{x}: %{z:.0f} dias<extra></extra>", xgap=2, ygap=2)
     fig.update_xaxes(
         tickvals=list(by_rpa.columns),
-        ticktext=[f"RPA {int(r)}" for r in by_rpa.columns],
+        ticktext=[rpa_label(r).replace(" · ", "<br>") for r in by_rpa.columns],
         showline=False,
         side="top",
     )
