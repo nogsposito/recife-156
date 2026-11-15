@@ -2,7 +2,7 @@ import json
 
 import pandas as pd
 
-from src.ai.assistant import QueryRun, ask
+from src.ai.assistant import HISTORY_TURNS, QueryRun, ask
 
 
 def tool_call(sql: str, call_id: str = "call-1") -> dict:
@@ -80,3 +80,29 @@ def test_a_refusal_ends_the_loop_with_a_clear_message():
     answer = ask("pergunta", "schema", client, lambda sql: QueryRun(sql))
 
     assert "não respondeu" in answer.text
+
+
+def test_earlier_turns_go_to_the_model_before_the_new_question():
+    client = ScriptedClient([reply("Em 2024 foram 98 mil.")])
+    history = [
+        {"role": "user", "content": "Quantos chamados em 2025?"},
+        {"role": "assistant", "content": "Foram 105 mil."},
+        {"role": "tool", "content": "ignorado"},
+    ]
+
+    ask("E em 2024?", "schema", client, lambda sql: QueryRun(sql), history=history)
+
+    roles = [message["role"] for message in client.requests[0]["messages"]]
+    assert roles == ["system", "user", "assistant", "user"]
+    assert client.requests[0]["messages"][-1]["content"] == "E em 2024?"
+
+
+def test_only_the_most_recent_turns_are_sent():
+    client = ScriptedClient([reply("ok")])
+    history = [{"role": "user", "content": f"pergunta {n}"} for n in range(20)]
+
+    ask("última", "schema", client, lambda sql: QueryRun(sql), history=history)
+
+    sent = client.requests[0]["messages"]
+    assert len(sent) == 1 + HISTORY_TURNS + 1
+    assert sent[1]["content"] == f"pergunta {20 - HISTORY_TURNS}"
