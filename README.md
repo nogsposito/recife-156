@@ -2,7 +2,15 @@
 
 [![CI](https://github.com/nogsposito/recife-156/actions/workflows/ci.yml/badge.svg)](https://github.com/nogsposito/recife-156/actions/workflows/ci.yml)
 
-Projeto de dados ponta a ponta sobre os chamados do 156 da Emlurb, a central em que moradores do Recife pedem conserto de iluminação, limpeza, poda de árvores, drenagem e pavimentação. Ele cruza os dados abertos da prefeitura com a chuva diária da cidade, trata tudo em camadas (bronze, silver e gold) com ingestão incremental e validações de qualidade, modela a camada final em esquema estrela no PostgreSQL, guarda o dado bruto no MongoDB, responde perguntas de gestão com SQL em notebooks, treina um modelo que prevê na abertura se um chamado será atendido em até 30 dias, usa NLP para unir 14 anos de descrições de serviço e entrega um dashboard com uma visão para cada público e um assistente que responde perguntas em português gerando SQL.
+O projeto analisa os chamados registrados no 156 da Emlurb, canal pelo qual os moradores do Recife solicitam serviços como reparos na iluminação pública, limpeza urbana, poda de árvores, drenagem e pavimentação.
+
+A ideia é transformar esses registros em informações que ajudem a entender melhor os problemas da cidade, identificar padrões nos atendimentos e prever quais solicitações têm maior chance de serem resolvidas em até 30 dias.
+
+Para isso, reuni dados abertos da Prefeitura do Recife e informações sobre a chuva na cidade. Organizei e validei esses dados em diferentes etapas, armazenando tanto os registros originais quanto as informações já tratadas para análise.
+
+A partir daí, construí um banco de dados estruturado, realizamos análises com SQL, desenvolvemos um modelo de machine learning para prever o prazo de atendimento e utilizamos técnicas de processamento de linguagem natural (NLP) para padronizar descrições de serviços registradas ao longo de 14 anos.
+
+Por fim, o projeto disponibiliza dashboards com informações direcionadas a diferentes públicos e um assistente inteligente que permite fazer perguntas sobre os dados em português e obter respostas por meio de consultas SQL.
 
 Painel publicado: [recife-156.streamlit.app](https://recife-156.streamlit.app)
 
