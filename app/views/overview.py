@@ -24,44 +24,38 @@ from src.dashboard.neighborhoods import (
 )
 from src.dashboard.style import ACCENT, INK, ranked_bars, show
 from src.dashboard.ui import (
+    Stage,
     Stat,
-    Step,
-    flow,
+    facts,
     glossary,
+    group,
     header,
     note,
-    panel_heading,
-    section,
-    stats,
+    panel,
+    panel_title,
+    pipeline_flow,
+    statement,
 )
+
+MAP_HEIGHT = 640
 
 tickets = load_tickets()
 reference = tickets["status_updated_on"].max()
 resolved = tickets[~tickets["is_open"]]
 
 header(
-    "Recife · Central 156 · 2024 e 2025",
-    "Onde a manutenção urbana do Recife trava",
-    f"Os {fmt_int(len(tickets))} pedidos feitos à central 156 da Emlurb em 2024 e 2025 "
-    "mostram o que a cidade mais pede, quanto tempo cada pedido espera e onde a fila se "
-    "acumula. Os dados vêm do portal de dados abertos da prefeitura e são cruzados com a "
-    "chuva diária.",
+    "Visão geral",
+    "O que o Recife pede à central 156, quanto cada pedido espera e onde a fila se acumula.",
+    "home",
+)
+statement(
+    f"Em 2024 e 2025, a central 156 da Emlurb recebeu [[{fmt_int(len(tickets))}]] pedidos de "
+    f"manutenção urbana, de [[{fmt_int(tickets['service_name'].nunique())}]] tipos de serviço. "
+    f"[[{fmt_pct(100 * len(resolved) / len(tickets))}]] já foram atendidos, e "
+    f"[[{fmt_int(tickets['is_open'].sum())}]] seguiam na fila em {reference:%d/%m/%Y}."
 )
 
-stats(
-    [
-        Stat(fmt_int(len(tickets)), "chamados abertos em 2024 e 2025"),
-        Stat(fmt_int(tickets["service_name"].nunique()), "tipos de serviço pedidos"),
-        Stat(
-            fmt_pct(100 * len(resolved) / len(tickets)),
-            "já atendidos",
-            f"situação em {reference:%d/%m/%Y}",
-        ),
-        Stat(fmt_int(tickets["is_open"].sum()), "ainda na fila", "o que a central tem a resolver"),
-    ]
-)
-
-section("O que cada termo quer dizer")
+group("O que cada termo quer dizer")
 glossary(
     [
         (
@@ -110,7 +104,7 @@ if view == "Colunas 3D":
     by_rpa = shown["rpa"].value_counts(normalize=True)
     first, second = by_rpa.index[:2]
     with title_area:
-        section(
+        group(
             f"{fmt_pct(100 * by_rpa.iloc[:2].sum(), 0)} da fila mapeada fica nas regiões "
             f"{rpa_label(first)} e {rpa_label(second)}",
             "Cada coluna soma os chamados em aberto num raio de 260 m: quanto mais alta e clara, "
@@ -118,32 +112,34 @@ if view == "Colunas 3D":
             f"{fmt_pct(100 * len(points) / tickets['is_open'].sum(), 0)} da fila que têm "
             "coordenadas. Arraste para girar o mapa.",
         )
-    queue_map(shown)
+    queue_map(shown, height=MAP_HEIGHT)
 else:
     boundaries = load_boundaries()
     places = {f["properties"]["name"]: f["properties"] for f in boundaries["features"]}
     by_neighborhood = neighborhood_stats(filtered, reference, "group" if all_groups else "service")
     leader = by_neighborhood["open_tickets"].idxmax()
     with title_area:
-        section(
-            f"{places[leader]['label']} tem a maior fila: "
+        group(
+            f"Entre todos os bairros, {places[leader]['label']} tem a maior fila: "
             f"{fmt_int(by_neighborhood.loc[leader, 'open_tickets'])} chamados em aberto",
-            "Quanto mais claro o bairro, mais chamados esperando. Passe o mouse para ver o nome e "
-            "clique para abrir o resumo. O volume acompanha o tamanho do bairro; a espera, no "
-            "resumo, compara o bairro com a cidade nos mesmos serviços.",
+            "Quanto mais vermelho o bairro, mais chamados esperando. Clique num bairro para ver o "
+            "resumo ao lado. Bairros maiores costumam ter filas maiores; o resumo compara a "
+            "espera com a da cidade nos mesmos serviços.",
         )
     open_filtered = filtered[filtered["is_open"]]
     city_over_180 = ((reference - open_filtered["opened_on"]).dt.days > 180).mean()
-    map_column, panel_column = st.columns([3, 2], gap="large")
+    map_column, panel_column = st.columns([3, 2], gap="medium")
     with map_column:
-        selected = neighborhood_map(boundaries, by_neighborhood, city_over_180, default=leader)
-    with panel_column:
+        selected = neighborhood_map(
+            boundaries, by_neighborhood, city_over_180, default=leader, height=MAP_HEIGHT
+        )
+    with panel_column, panel("bairro", height=MAP_HEIGHT):
         place = places.get(selected, {"label": selected, "rpa": 0})
         rpa = place["rpa"]
-        panel_heading(rpa_label(rpa) if rpa else "", place["label"])
+        panel_title(f"Região {rpa_label(rpa)}" if rpa else "", place["label"])
         if selected in by_neighborhood.index:
             row = by_neighborhood.loc[selected]
-            stats(
+            facts(
                 [
                     Stat(fmt_int(row["open_tickets"]), "chamados em aberto"),
                     Stat(fmt_pct(100 * row["over_180"], 0), "há mais de seis meses"),
@@ -164,10 +160,10 @@ else:
         else:
             st.markdown("Nenhum chamado em aberto neste bairro com esse filtro.")
 
-section("O que os dados mostram")
+group("O que os dados mostram")
 columns = st.columns(3, gap="medium")
 
-with columns[0], st.container(border=True):
+with columns[0], panel("servicos"):
     top = tickets["service"].value_counts().head(6)
     share = 100 * top / len(tickets)
     leader = top.index[0]
@@ -185,7 +181,7 @@ with columns[0], st.container(border=True):
         "views/operational.py", label="Ver a fila de hoje", icon=":material/arrow_forward:"
     )
 
-with columns[1], st.container(border=True):
+with columns[1], panel("tempo"):
     volume = tickets["group"].value_counts()
     big_groups = volume[volume >= 5000].index
     median_days = (
@@ -212,7 +208,7 @@ with columns[1], st.container(border=True):
         "views/managerial.py", label="Ver o tempo de atendimento", icon=":material/arrow_forward:"
     )
 
-with columns[2], st.container(border=True):
+with columns[2], panel("fila"):
     opened = tickets.groupby(tickets["opened_on"].dt.to_period("M")).size()
     closed = resolved.groupby(resolved["status_updated_on"].dt.to_period("M")).size()
     backlog = (opened.cumsum() - closed.reindex(opened.index, fill_value=0).cumsum()).rename(
@@ -228,7 +224,7 @@ with columns[2], st.container(border=True):
             mode="lines",
             line={"color": ACCENT, "width": 2},
             fill="tozeroy",
-            fillcolor="rgba(61,155,233,0.14)",
+            fillcolor="rgba(190,165,125,0.14)",
             hovertemplate="%{x|%m/%Y}: %{y:,.0f} em aberto<extra></extra>",
         )
     )
@@ -257,41 +253,34 @@ last_run = (
 checks = load_quality_checks(int(last_run["run_id"])) if last_run is not None else pd.DataFrame()
 sizes = load_layer_sizes()
 
-section(
+group(
     "Como os dados chegam até aqui",
     "Um pipeline baixa, trata, valida e carrega os dados no banco. Uma nova execução só baixa "
     "o que mudou no portal.",
 )
-flow(
+pipeline_flow(
     [
-        Step(
-            "1 · FONTES",
+        Stage(
+            "Fontes",
             "APIs públicas",
-            ["Portal de Dados Abertos do Recife (CKAN)", "Chuva diária do Open-Meteo"],
+            chips=["Portal de Dados Abertos do Recife", "Chuva diária do Open-Meteo"],
         ),
-        Step(
-            "2 · BRONZE",
-            "Arquivo bruto versionado",
-            ["Parquet por ano, sem alterar nada", "Versão e hash de cada arquivo"],
-        ),
-        Step(
-            "3 · SILVER",
+        Stage("Bronze", "Arquivo bruto", "Parquet por ano, guardado como veio, com versão."),
+        Stage(
+            "Silver",
             "Limpeza e validação",
-            ["Tipos, textos e coordenadas", f"{len(checks)} checagens de qualidade por carga"],
+            "Tipos, textos e coordenadas conferidos.",
             f"{fmt_int(last_run['silver_rows'])} chamados" if last_run is not None else "",
         ),
-        Step(
-            "4 · GOLD",
+        Stage(
+            "Gold",
             "Banco analítico",
-            ["PostgreSQL em esquema estrela", "Índices medidos com EXPLAIN ANALYZE"],
+            "PostgreSQL em esquema estrela.",
             f"{fmt_int(sizes['fact_tickets'])} linhas na tabela fato",
         ),
-        Step(
-            "5 · USO",
-            "Painel, modelos e IA",
-            ["Análises e previsão de atraso", "NLP e assistente em SQL"],
-        ),
-    ]
+        Stage("Uso", "Este painel", chips=["Análises", "Previsão de atraso", "Assistente de IA"]),
+    ],
+    ["só o que mudou", "versão e hash", f"{len(checks)} checagens", "carga completa"],
 )
 st.page_link(
     "views/pipeline.py",
@@ -299,7 +288,7 @@ st.page_link(
     icon=":material/arrow_forward:",
 )
 
-section(
+group(
     "O que mais dá para fazer com esses dados",
     "Prever quais chamados vão atrasar, ligar o histórico antigo ao catálogo atual e responder "
     "perguntas em português.",
@@ -307,30 +296,30 @@ section(
 artifact = load_model()
 nlp = load_doc_json("nlp_results.json")
 columns = st.columns(3, gap="medium")
-with columns[0], st.container(border=True):
+with columns[0], panel("modelo"):
     st.markdown("**Previsão de atraso**")
     if artifact is not None:
         model = artifact["results"]["Gradient boosting"]
         st.markdown(
-            f"Na abertura do chamado, estima a chance de atendimento em 30 dias. "
-            f"AUC de {fmt_num(model['auc'], 3)} em meses que o modelo nunca viu; "
-            f"{fmt_pct(100 * model['alert_precision'], 0)} dos alertas de atraso se confirmam."
+            "Na abertura do chamado, avisa quais pedidos devem passar de 30 dias. De cada 10 "
+            f"alertas, {fmt_num(10 * model['alert_precision'], 0)} se confirmam em meses que o "
+            "modelo nunca viu."
         )
     st.page_link("views/predictions.py", label="Abrir o modelo", icon=":material/arrow_forward:")
-with columns[1], st.container(border=True):
+with columns[1], panel("nlp"):
     st.markdown("**Histórico com NLP**")
     if nlp is not None:
         best = nlp["original"]["Caracteres (TF-IDF) + regressão logística"]
         st.markdown(
             "As descrições de 2012 a 2023 usam outro catálogo e perderam os acentos. Um "
-            "classificador de n-gramas põe no grupo certo "
+            "classificador de texto põe no grupo certo "
             f"{fmt_pct(100 * best['ticket_accuracy'], 0)} dos chamados antigos."
         )
     st.page_link("views/history.py", label="Abrir o de-para", icon=":material/arrow_forward:")
-with columns[2], st.container(border=True):
-    st.markdown("**Pergunte aos dados**")
+with columns[2], panel("agente"):
+    st.markdown("**Assistente de IA**")
     st.markdown(
-        "Perguntas em português viram SQL, validada e executada com um usuário que só lê. "
-        "Toda consulta aparece ao lado da resposta."
+        "Responde em português sobre os dados e sobre o painel. Só lê o banco, e toda consulta "
+        "que ele faz aparece ao lado da resposta."
     )
     st.page_link("views/assistant.py", label="Fazer uma pergunta", icon=":material/arrow_forward:")
