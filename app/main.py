@@ -37,7 +37,8 @@ page = st.navigation(pages)
 with st.sidebar:
     st.caption(
         "Dados: chamados do 156 da Emlurb, do Portal de Dados Abertos do Recife, e chuva diária "
-        "do Open-Meteo. Os filtros valem só para a página aberta."
+        "do Open-Meteo. RPA é uma das 6 regiões em que a prefeitura divide os bairros. Os "
+        "filtros valem só para a página aberta."
     )
 
 page.run()

@@ -5,7 +5,7 @@ import streamlit as st
 from sqlalchemy import Engine, text
 
 from src.config import DOCS_DIR, SQL_DIR
-from src.dashboard.labels import place_label, sentence_label
+from src.dashboard.labels import place_label, rpa_label, sentence_label
 from src.db.load import get_engine
 from src.ml.predict import load_artifact
 
@@ -118,7 +118,14 @@ def sidebar_filters(tickets: pd.DataFrame) -> pd.DataFrame:
         groups = st.multiselect(
             "Grupo de serviço", sorted(tickets["group"].dropna().unique()), placeholder="Todos"
         )
-        rpas = st.multiselect("RPA", list(range(1, 7)), placeholder="Todas")
+        rpas = st.multiselect(
+            "Região (RPA)",
+            list(range(1, 7)),
+            format_func=rpa_label,
+            placeholder="Todas",
+            help="O Recife é dividido em 6 Regiões Político-Administrativas (RPAs), que "
+            "agrupam os 94 bairros.",
+        )
     mask = pd.Series(True, index=tickets.index)
     if groups:
         mask &= tickets["group"].isin(groups)

@@ -118,7 +118,9 @@ show(fig, height=140)
 section(
     "Contra duas alternativas simples, o modelo ganha, com margem pequena no geral",
     "A taxa geral do treino chuta a mesma chance para todos; o histórico do serviço usa a taxa "
-    "de atendimento de cada serviço. AUC e precisão: quanto maior, melhor. Brier mede o erro da "
+    "de atendimento de cada serviço. AUC mede se o modelo põe os chamados que atrasam acima dos "
+    "que não atrasam: 0,5 é chute e 1 é acerto total. Precisão do alerta: dos chamados "
+    "marcados como atraso, quantos atrasaram. Nas duas, quanto maior, melhor. Brier mede o erro da "
     "chance prevista: quanto menor, melhor.",
 )
 names = list(results)

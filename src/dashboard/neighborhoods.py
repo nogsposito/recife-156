@@ -7,6 +7,7 @@ from streamlit_folium import st_folium
 
 from src.config import PROJECT_ROOT
 from src.dashboard.data import fmt_int, fmt_num, fmt_pct
+from src.dashboard.labels import rpa_label
 
 # Official boundaries from the Recife open data portal ("Bairros do Recife"), simplified to ~6 m
 BOUNDARIES_PATH = PROJECT_ROOT / "app" / "assets" / "recife_bairros.geojson"
@@ -16,7 +17,6 @@ ALIASES = {
     "COHAB": "COHAB IBURA DE CIMA",
     "SITIO DOS PINTOS": "SITIO DOS PINTOS SAO BRAS",
 }
-RPA_REGIONS = {1: "Centro", 2: "Norte", 3: "Noroeste", 4: "Oeste", 5: "Sudoeste", 6: "Sul"}
 # Groups that rise after heavy rain (notebook 03)
 RAIN_GROUPS = {"Drenagem", "Arborização"}
 # Dark to bright blue: the brighter the neighborhood, the more open tickets
@@ -145,7 +145,7 @@ def neighborhood_map(
         known = name in stats.index
         step = min(int(ranks[name] * len(STEPS)), len(STEPS) - 1) if known else 0
         props.update(
-            region=f"RPA {props['rpa']} · {RPA_REGIONS[props['rpa']]}",
+            region=rpa_label(props["rpa"]),
             queue=f"{fmt_int(stats.loc[name, 'open_tickets']) if known else 0} chamados em aberto",
             summary=describe(stats.loc[name], city_over_180)
             if known

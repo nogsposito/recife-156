@@ -103,7 +103,7 @@ class OpenRouterClient:
 
 
 def get_readonly_engine() -> Engine:
-    return create_engine(ASSISTANT_DATABASE_URL)
+    return create_engine(ASSISTANT_DATABASE_URL, pool_pre_ping=True, pool_recycle=300)
 
 
 # Columns of the allowed tables, plus the values of the short categorical columns, so the

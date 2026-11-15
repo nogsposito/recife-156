@@ -61,7 +61,7 @@ recent = (
     .rename("tickets")
     .reset_index()
 )
-recent["weekend"] = recent["opened_on"].dt.dayofweek >= 5
+recent["weekend"] = recent["opened_on"].dt.day_of_week >= 5
 weekday_mean = recent.loc[~recent["weekend"], "tickets"].mean()
 weekend_mean = recent.loc[recent["weekend"], "tickets"].mean()
 section(

@@ -14,16 +14,26 @@ from src.dashboard.data import (
     load_quality_checks,
     load_tickets,
 )
+from src.dashboard.labels import rpa_label
 from src.dashboard.maps import queue_map
 from src.dashboard.neighborhoods import (
-    RPA_REGIONS,
     describe,
     load_boundaries,
     neighborhood_map,
     neighborhood_stats,
 )
 from src.dashboard.style import ACCENT, INK, ranked_bars, show
-from src.dashboard.ui import Stat, Step, flow, header, note, panel_heading, section, stats
+from src.dashboard.ui import (
+    Stat,
+    Step,
+    flow,
+    glossary,
+    header,
+    note,
+    panel_heading,
+    section,
+    stats,
+)
 
 tickets = load_tickets()
 reference = tickets["status_updated_on"].max()
@@ -51,6 +61,36 @@ stats(
     ]
 )
 
+section("O que cada termo quer dizer")
+glossary(
+    [
+        (
+            "156",
+            "Canal de atendimento da Prefeitura do Recife, por onde os moradores pedem serviços "
+            "na rua.",
+        ),
+        (
+            "Emlurb",
+            "Empresa de Manutenção e Limpeza Urbana do Recife. É quem executa os pedidos: "
+            "iluminação, limpeza, poda de árvores, drenagem e pavimentação.",
+        ),
+        (
+            "Chamado",
+            "Cada pedido registrado no 156. Fica em aberto até a Emlurb marcar como atendido.",
+        ),
+        (
+            "Fila",
+            f"Os chamados ainda em aberto em {reference:%d/%m/%Y}, a data mais recente dos dados "
+            "abertos.",
+        ),
+        (
+            "RPA",
+            "Região Político-Administrativa. A prefeitura agrupa os 94 bairros em 6 regiões: "
+            "Centro, Norte, Noroeste, Oeste, Sudoeste e Sul.",
+        ),
+    ]
+)
+
 # The title depends on the choices made below it, so it is filled after them
 title_area = st.container()
 controls = st.columns([4, 1.3], vertical_alignment="center")
@@ -71,8 +111,8 @@ if view == "Colunas 3D":
     first, second = by_rpa.index[:2]
     with title_area:
         section(
-            f"{fmt_pct(100 * by_rpa.iloc[:2].sum(), 0)} da fila mapeada fica nas RPAs "
-            f"{int(first)} e {int(second)}",
+            f"{fmt_pct(100 * by_rpa.iloc[:2].sum(), 0)} da fila mapeada fica nas regiões "
+            f"{rpa_label(first)} e {rpa_label(second)}",
             "Cada coluna soma os chamados em aberto num raio de 260 m: quanto mais alta e clara, "
             f"mais pedidos esperando. Entram os "
             f"{fmt_pct(100 * len(points) / tickets['is_open'].sum(), 0)} da fila que têm "
@@ -100,7 +140,7 @@ else:
     with panel_column:
         place = places.get(selected, {"label": selected, "rpa": 0})
         rpa = place["rpa"]
-        panel_heading(f"RPA {rpa} · {RPA_REGIONS.get(rpa, '')}", place["label"])
+        panel_heading(rpa_label(rpa) if rpa else "", place["label"])
         if selected in by_neighborhood.index:
             row = by_neighborhood.loc[selected]
             stats(
