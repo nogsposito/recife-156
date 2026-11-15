@@ -31,6 +31,7 @@ A prefeitura recebe mais de 100 mil chamados por ano no 156. Para quem gere esse
 | Fonte | Formato | Acesso |
 |---|---|---|
 | [Central de Atendimento de Serviços da Emlurb (156)](https://dados.recife.pe.gov.br/dataset/central-de-atendimento-de-servicos-da-emlurb-156), Portal de Dados Abertos do Recife | CSV por ano, licença ODbL | API CKAN para descobrir os arquivos, download direto |
+| [Bairros do Recife](https://dados.recife.pe.gov.br/dataset/area-urbana), Portal de Dados Abertos do Recife | GeoJSON, simplificado em [app/assets](app/assets) | Contorno dos bairros no mapa do painel |
 | [Open-Meteo, API histórica](https://open-meteo.com/en/docs/historical-weather-api) | JSON com chuva e temperatura diárias, licença CC BY 4.0 | API REST sem chave |
 
 O recorte padrão é 2024 e 2025. O notebook [01_data_cleaning](notebooks/01_data_cleaning.ipynb) mostra os problemas encontrados nos arquivos brutos e a decisão tomada em cada um: o arquivo de um ano traz chamados de anos anteriores, o mesmo chamado aparece em mais de um arquivo com situações diferentes, as grafias variam, há coordenadas fora do mapa e, até 2023, os códigos de serviço eram outros e os acentos foram apagados na origem. O schema real e as regras de limpeza estão em [docs/data_dictionary.md](docs/data_dictionary.md). A chuva vem de um modelo em grade, não de um pluviômetro: serve para comparar dias entre si, não para medir milímetros.
@@ -174,7 +175,7 @@ O painel está publicado em [recife-156.streamlit.app](https://recife-156.stream
 
 | Página | O que responde |
 |---|---|
-| [Visão geral](docs/img/dashboard_overview.png) | Os três achados principais, um mapa 3D da fila em aberto filtrável por grupo e o caminho dos dados do portal até o banco |
+| [Visão geral](docs/img/dashboard_overview.png) | Os três achados principais, o mapa da fila por bairro (passar o mouse mostra o bairro e a RPA; clicar abre um resumo calculado dos dados, sem IA) com a alternativa em colunas 3D, e o caminho dos dados do portal até o banco |
 | [A fila hoje](docs/img/dashboard_operational.png) | O que chegou nos últimos dias, o ritmo da semana e onde a fila está parada, por bairro e serviço |
 | [Tempo de atendimento](docs/img/dashboard_managerial.png) | Quanto cada grupo de serviço espera (um clique no grupo abre os serviços dele), como a região muda a espera e se entra mais do que sai |
 | [Tendência e chuva](docs/img/dashboard_strategic.png) | Variação entre anos, sazonalidade e efeito da chuva forte por serviço, com teste estatístico |

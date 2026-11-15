@@ -47,6 +47,10 @@ h1, h2, h3 {{ letter-spacing: -0.02em; color: {INK}; }}
 }}
 
 .r-section {{ margin: 2.2rem 0 0.3rem; }}
+.r-panel-title {{
+    font-size: 1.7rem; font-weight: 500; letter-spacing: -0.03em; margin: 0 0 .2rem;
+    animation: r-up .4s var(--r-ease-enter) both;
+}}
 .r-section h3 {{ font-size: 1.28rem; font-weight: 500; margin: 0 0 0.3rem; padding: 0; }}
 .r-section p {{
     color: {INK_2}; font-size: 0.95rem; line-height: 1.55; margin: 0; max-width: 78ch;
@@ -246,3 +250,10 @@ def flow(steps: list[Step]) -> None:
         for index, step in enumerate(steps)
     )
     st.html(f'<div class="r-flow">{cards}</div>')
+
+
+def panel_heading(kicker: str, title: str) -> None:
+    st.html(
+        f'<p class="r-kicker" style="margin-top:.4rem">{escape(kicker)}</p>'
+        f'<h3 class="r-panel-title">{escape(title)}</h3>'
+    )
