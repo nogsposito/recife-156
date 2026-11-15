@@ -2,13 +2,9 @@
 
 [![CI](https://github.com/nogsposito/recife-156/actions/workflows/ci.yml/badge.svg)](https://github.com/nogsposito/recife-156/actions/workflows/ci.yml)
 
-O projeto analisa os chamados registrados no 156 da Emlurb, canal pelo qual os moradores do Recife solicitam serviços como reparos na iluminação pública, limpeza urbana, poda de árvores, drenagem e pavimentação.
+O projeto analisa os chamados registrados no 156 da Emlurb, canal pelo qual os moradores do Recife solicitam serviços como reparos na iluminação pública, limpeza urbana, poda de árvores, drenagem e pavimentação. A ideia é transformar esses registros em informações que ajudem a entender melhor os problemas da cidade, identificar padrões nos atendimentos e prever quais solicitações têm maior chance de serem resolvidas em até 30 dias.
 
-A ideia é transformar esses registros em informações que ajudem a entender melhor os problemas da cidade, identificar padrões nos atendimentos e prever quais solicitações têm maior chance de serem resolvidas em até 30 dias.
-
-Para isso, reuni dados abertos da Prefeitura do Recife e informações sobre a chuva na cidade. Organizei e validei esses dados em diferentes etapas, armazenando tanto os registros originais quanto as informações já tratadas para análise.
-
-A partir daí, construí um banco de dados estruturado, realizamos análises com SQL, desenvolvemos um modelo de machine learning para prever o prazo de atendimento e utilizamos técnicas de processamento de linguagem natural (NLP) para padronizar descrições de serviços registradas ao longo de 14 anos.
+Para isso, reuni dados abertos da Prefeitura do Recife e informações sobre a chuva na cidade. Organizei e validei esses dados em diferentes etapas, armazenando tanto os registros originais quanto as informações já tratadas para análise. A partir daí, construí um banco de dados estruturado, realizamos análises com SQL, desenvolvemos um modelo de machine learning para prever o prazo de atendimento e utilizamos técnicas de processamento de linguagem natural (NLP) para padronizar descrições de serviços registradas ao longo de 14 anos.
 
 Por fim, o projeto disponibiliza dashboards com informações direcionadas a diferentes públicos e um assistente inteligente que permite fazer perguntas sobre os dados em português e obter respostas por meio de consultas SQL.
 
