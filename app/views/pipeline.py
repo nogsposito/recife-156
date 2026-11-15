@@ -12,7 +12,18 @@ from src.dashboard.data import (
     load_source_versions,
 )
 from src.dashboard.style import ACCENT, INK, NEUTRAL, show
-from src.dashboard.ui import Stat, Step, callout, flow, header, note, section, stats
+from src.dashboard.ui import (
+    Stage,
+    Stat,
+    callout,
+    facts,
+    group,
+    header,
+    note,
+    panel,
+    pipeline_flow,
+    section,
+)
 
 CHECK_LABELS = {
     "tickets_not_empty": "A carga tem chamados",
@@ -43,13 +54,12 @@ sizes = load_layer_sizes()
 duration = (last["finished_at"] - last["started_at"]).total_seconds()
 
 header(
-    "Pipeline de dados",
-    f"Cada carga passa por {len(checks)} checagens antes de chegar ao banco",
-    "O pipeline baixa os dados abertos e a chuva, guarda o arquivo bruto com versão, limpa, "
-    "valida e carrega um esquema estrela no PostgreSQL. Tudo roda do zero com docker compose up, "
-    "e uma nova execução só baixa o que mudou no portal.",
+    "Pipeline e qualidade",
+    "Como os dados saem do portal da prefeitura e chegam a este painel, e o que é conferido no "
+    "caminho. Tudo roda do zero com docker compose up.",
+    "database",
 )
-stats(
+facts(
     [
         Stat(
             f"{last['finished_at']:%d/%m/%Y}",
@@ -62,48 +72,57 @@ stats(
     ]
 )
 
-section("Do portal ao painel", "As camadas do pipeline e o que cada uma garante.")
-flow(
+group(
+    "Do portal ao painel",
+    "Cada etapa recebe o que a anterior entregou. As setas dizem o que acontece na passagem.",
+)
+pipeline_flow(
     [
-        Step(
-            "FONTES",
+        Stage(
+            "Fontes",
             "Ingestão",
-            [
-                "API CKAN do portal do Recife",
-                "API do Open-Meteo",
-                "Novas tentativas em falha de rede",
-            ],
+            "Novas tentativas quando a rede falha.",
+            chips=["API do Portal de Dados Abertos do Recife", "API do Open-Meteo"],
         ),
-        Step(
-            "BRONZE",
+        Stage(
+            "Bronze",
             "Bruto e versionado",
-            ["Parquet por ano, como veio", "Manifesto com versão e hash", "Cópia em MongoDB"],
+            "Parquet por ano, como veio, com cópia em MongoDB.",
+            f"{len(load_source_versions(int(last['run_id'])))} arquivos registrados",
         ),
-        Step(
-            "SILVER",
+        Stage(
+            "Silver",
             "Limpo e validado",
-            ["Tipos, textos e coordenadas", "Deduplicação entre arquivos", "Portão de qualidade"],
+            "Tipos, textos e coordenadas; duplicatas removidas entre arquivos.",
             f"{fmt_int(last['silver_rows'])} chamados",
         ),
-        Step(
-            "GOLD",
+        Stage(
+            "Gold",
             "Esquema estrela",
-            [
-                f"Fato com {fmt_int(sizes['fact_tickets'])} chamados",
-                f"{sizes['dim_service']} serviços, {sizes['dim_neighborhood']} bairros",
-                f"{fmt_int(sizes['dim_date'])} dias com chuva",
-            ],
+            f"{sizes['dim_service']} serviços, {sizes['dim_neighborhood']} bairros e "
+            f"{fmt_int(sizes['dim_date'])} dias com chuva.",
+            f"{fmt_int(sizes['fact_tickets'])} linhas na tabela fato",
         ),
-        Step(
-            "OPS",
-            "Rastreabilidade",
-            ["Cada execução registrada", "Resultado de cada checagem", "Versão de cada fonte lida"],
+        Stage(
+            "Uso",
+            "Painel, modelo e IA",
+            chips=["Este painel", "Previsão de atraso", "Assistente de IA"],
         ),
-    ]
+    ],
+    [
+        "só baixa o que mudou",
+        "versão e hash conferidos",
+        f"{len(checks)} checagens antes de carregar",
+        "consultas só de leitura",
+    ],
+)
+note(
+    "Cada execução, o resultado de cada checagem e a versão de cada fonte lida ficam registrados "
+    "no schema ops do banco."
 )
 
-left, right = st.columns([3, 2], gap="large")
-with left:
+left, right = st.columns([3, 2], gap="medium")
+with left, panel("checagens"):
     section(
         f"{int(blocking['passed'].sum())} de {len(blocking)} checagens que bloqueiam a carga "
         "passaram",
@@ -125,7 +144,7 @@ with left:
         },
     )
 
-with right:
+with right, panel("versoes"):
     versions = load_source_versions(int(last["run_id"]))
     section(
         "Cada fonte entra com versão e hash",
@@ -174,54 +193,55 @@ if benchmark is not None:
     indexes = benchmark["indexes"]
     best = max(indexes, key=lambda row: row["without_ms"] / row["with_ms"])
     rewrite = benchmark["rewrites"][0]
-    section(
-        f"O índice certo deixa a consulta mais usada {best['without_ms'] / best['with_ms']:.0f} "
-        "vezes mais rápida",
-        "Tempo de execução (mediana de 15 rodadas de EXPLAIN ANALYZE) sem e com os índices. "
-        "Escala logarítmica: cada marca do eixo é dez vezes a anterior.",
-    )
-    fig = go.Figure()
-    for row in indexes:
-        fig.add_shape(
-            type="line",
-            x0=row["with_ms"],
-            x1=row["without_ms"],
-            y0=row["query"],
-            y1=row["query"],
-            line={"color": NEUTRAL, "width": 2},
+    with panel("benchmark"):
+        section(
+            "O índice certo deixa a consulta mais usada "
+            f"{best['without_ms'] / best['with_ms']:.0f} vezes mais rápida",
+            "Tempo de execução (mediana de 15 rodadas de EXPLAIN ANALYZE) sem e com os índices. "
+            "Escala logarítmica: cada marca do eixo é dez vezes a anterior.",
         )
-    queries = [row["query"] for row in indexes]
-    fig.add_scatter(
-        x=[row["without_ms"] for row in indexes],
-        y=queries,
-        mode="markers",
-        marker={"color": NEUTRAL, "size": 11},
-        name="Sem índice",
-        customdata=[row["without_plan"] for row in indexes],
-        hovertemplate="Sem índice: %{x:.1f} ms<br>%{customdata}<extra></extra>",
-    )
-    fig.add_scatter(
-        x=[row["with_ms"] for row in indexes],
-        y=queries,
-        mode="markers+text",
-        marker={"color": ACCENT, "size": 11},
-        name="Com índice",
-        text=[f"{row['without_ms'] / row['with_ms']:.0f}x" for row in indexes],
-        textposition="middle left",
-        textfont={"color": INK},
-        customdata=[row["with_plan"] for row in indexes],
-        hovertemplate="Com índice: %{x:.1f} ms<br>%{customdata}<extra></extra>",
-    )
-    fig.update_xaxes(
-        type="log",
-        title="Milissegundos (escala log)",
-        showgrid=True,
-        range=[-1.6, 3.3],
-        tickvals=[0.1, 1, 10, 100, 1000],
-        ticktext=["0,1", "1", "10", "100", "1.000"],
-    )
-    fig.update_yaxes(showline=False, gridcolor="rgba(0,0,0,0)", autorange="reversed")
-    show(fig, height=260)
+        fig = go.Figure()
+        for row in indexes:
+            fig.add_shape(
+                type="line",
+                x0=row["with_ms"],
+                x1=row["without_ms"],
+                y0=row["query"],
+                y1=row["query"],
+                line={"color": NEUTRAL, "width": 2},
+            )
+        queries = [row["query"] for row in indexes]
+        fig.add_scatter(
+            x=[row["without_ms"] for row in indexes],
+            y=queries,
+            mode="markers",
+            marker={"color": NEUTRAL, "size": 11},
+            name="Sem índice",
+            customdata=[row["without_plan"] for row in indexes],
+            hovertemplate="Sem índice: %{x:.1f} ms<br>%{customdata}<extra></extra>",
+        )
+        fig.add_scatter(
+            x=[row["with_ms"] for row in indexes],
+            y=queries,
+            mode="markers+text",
+            marker={"color": ACCENT, "size": 11},
+            name="Com índice",
+            text=[f"{row['without_ms'] / row['with_ms']:.0f}x" for row in indexes],
+            textposition="middle left",
+            textfont={"color": INK},
+            customdata=[row["with_plan"] for row in indexes],
+            hovertemplate="Com índice: %{x:.1f} ms<br>%{customdata}<extra></extra>",
+        )
+        fig.update_xaxes(
+            type="log",
+            title="Milissegundos (escala log)",
+            showgrid=True,
+            range=[-1.6, 3.3],
+            tickvals=[0.1, 1, 10, 100, 1000],
+            ticktext=["0,1", "1", "10", "100", "1.000"],
+        )
+        fig.update_yaxes(showline=False, gridcolor="rgba(0,0,0,0)", autorange="reversed")
+        show(fig, height=260)
     callout(
         f"Na consulta de chuva por dia, índice não ajuda: ela precisa ler todos os chamados. O que "
         f"funcionou foi reescrever, agregando antes de juntar com a chuva: de "

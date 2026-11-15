@@ -13,7 +13,7 @@ from src.dashboard.data import (
     sidebar_filters,
 )
 from src.dashboard.style import ACCENT, BACKGROUND, NEUTRAL, SEQUENTIAL, show
-from src.dashboard.ui import Stat, header, note, section, stats
+from src.dashboard.ui import Stat, facts, header, note, panel, section
 
 all_tickets = load_tickets()
 # The open data is a snapshot, so "today" is the most recent status change in it
@@ -24,23 +24,26 @@ last_30_days = reference - pd.Timedelta(days=30)
 
 old_share = 100 * (open_tickets["age_days"] > 180).mean() if len(open_tickets) else 0
 header(
-    "Operação",
-    f"{fmt_int(len(open_tickets))} chamados esperam atendimento, "
-    f"{fmt_pct(old_share, 0)} deles há mais de seis meses",
-    "Para quem coordena a central e as equipes de campo: o que chegou nos últimos dias e onde "
-    f"a fila está parada. Situação em {reference:%d/%m/%Y}, a data mais recente dos dados abertos.",
+    "A fila hoje",
+    "O que chegou nos últimos dias e onde os pedidos estão parados, para quem coordena a central "
+    f"e as equipes de campo. Situação em {reference:%d/%m/%Y}.",
+    "assignment",
 )
 
 opened_30 = (tickets["opened_on"] > last_30_days).sum()
 closed_30 = ((~tickets["is_open"]) & (tickets["status_updated_on"] > last_30_days)).sum()
 balance = closed_30 - opened_30
-stats(
+facts(
     [
-        Stat(fmt_int(opened_30), "abertos nos últimos 30 dias"),
-        Stat(fmt_int(closed_30), "atendidos nos últimos 30 dias"),
         Stat(
-            f"{balance:+,.0f}".replace(",", "."),
-            "saldo do mês",
+            fmt_int(len(open_tickets)),
+            "chamados esperando atendimento",
+            f"{fmt_pct(old_share, 0)} há mais de seis meses",
+        ),
+        Stat(fmt_int(opened_30), "abertos nos últimos 30 dias"),
+        Stat(
+            fmt_int(closed_30),
+            "atendidos nos últimos 30 dias",
             "a fila diminuiu" if balance > 0 else "a fila cresceu",
         ),
         Stat(
@@ -64,29 +67,34 @@ recent = (
 recent["weekend"] = recent["opened_on"].dt.day_of_week >= 5
 weekday_mean = recent.loc[~recent["weekend"], "tickets"].mean()
 weekend_mean = recent.loc[recent["weekend"], "tickets"].mean()
-section(
-    f"Dias úteis recebem {fmt_num(weekday_mean / max(weekend_mean, 1))} vezes mais chamados "
-    "que o fim de semana",
-    f"Chamados abertos por dia nos últimos 90 dias: média de {weekday_mean:.0f} por dia útil e "
-    f"{weekend_mean:.0f} por dia de fim de semana. A escala das equipes pode seguir esse ritmo.",
-)
-fig = go.Figure()
-for is_weekend, name, color in [(False, "Dia útil", ACCENT), (True, "Fim de semana", NEUTRAL)]:
-    part = recent[recent["weekend"] == is_weekend]
-    fig.add_bar(
-        x=part["opened_on"],
-        y=part["tickets"],
-        name=name,
-        marker_color=color,
-        hovertemplate="%{x|%a %d/%m}: %{y} chamados<extra></extra>",
+with panel("ritmo"):
+    section(
+        f"Dias úteis recebem {fmt_num(weekday_mean / max(weekend_mean, 1))} vezes mais chamados "
+        "que o fim de semana",
+        f"Chamados abertos por dia nos últimos 90 dias: média de {weekday_mean:.0f} por dia útil "
+        f"e {weekend_mean:.0f} por dia de fim de semana. A escala das equipes pode seguir esse "
+        "ritmo.",
     )
-fig.update_xaxes(tickformat="%d/%m")
-fig.update_yaxes(title="Chamados por dia")
-fig.update_layout(bargap=0.15)
-show(fig, height=280)
+    fig = go.Figure()
+    for is_weekend, name, color in [
+        (False, "Dia útil", ACCENT),
+        (True, "Fim de semana", NEUTRAL),
+    ]:
+        part = recent[recent["weekend"] == is_weekend]
+        fig.add_bar(
+            x=part["opened_on"],
+            y=part["tickets"],
+            name=name,
+            marker_color=color,
+            hovertemplate="%{x|%a %d/%m}: %{y} chamados<extra></extra>",
+        )
+    fig.update_xaxes(tickformat="%d/%m")
+    fig.update_yaxes(title="Chamados por dia")
+    fig.update_layout(bargap=0.15)
+    show(fig, height=280)
 
-left, right = st.columns(2, gap="large")
-with left:
+left, right = st.columns(2, gap="medium")
+with left, panel("bairros"):
     by_neighborhood = (
         open_tickets.groupby(["neighborhood", "age_bucket"], observed=False)
         .size()
@@ -94,9 +102,10 @@ with left:
     )
     top = by_neighborhood.sum(axis=1).nlargest(12)
     section(
-        f"{top.index[0]} tem a maior fila, com {fmt_int(top.iloc[0])} chamados",
-        "Bairros com mais chamados em aberto, pela idade do pedido. O volume acompanha o tamanho "
-        "do bairro: isto mostra onde está o trabalho, não quais bairros são mais mal atendidos.",
+        f"Entre todos os bairros, {top.index[0]} tem a maior fila: {fmt_int(top.iloc[0])} chamados",
+        "Os 12 bairros com mais chamados em aberto, pela idade do pedido. Bairro grande costuma "
+        "ter fila grande, então a barra mede volume de trabalho; para comparar a espera entre "
+        "bairros, use o mapa da visão geral.",
     )
     plot_data = (
         by_neighborhood.loc[top.index]
@@ -122,7 +131,7 @@ with left:
     fig.update_layout(bargap=0.25, legend_title_text=None)
     show(fig, height=440)
 
-with right:
+with right, panel("servicos"):
     by_service = (
         open_tickets.groupby("service", observed=True)
         .agg(
@@ -145,7 +154,7 @@ with right:
         hide_index=True,
         height=440,
         column_config={
-            "service": st.column_config.TextColumn("Serviço"),
+            "service": st.column_config.TextColumn("Serviço", width="medium"),
             "open_tickets": st.column_config.NumberColumn("Em aberto", format="localized"),
             "median_age": st.column_config.NumberColumn(
                 "Idade mediana", format="%d dias", help="Metade da fila é mais antiga que isso"

@@ -94,4 +94,4 @@ RPA_REGIONS = {1: "Centro", 2: "Norte", 3: "Noroeste", 4: "Oeste", 5: "Sudoeste"
 
 
 def rpa_label(rpa: int) -> str:
-    return f"RPA {int(rpa)} · {RPA_REGIONS.get(int(rpa), '')}"
+    return f"{RPA_REGIONS.get(int(rpa), '')} (RPA {int(rpa)})"

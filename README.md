@@ -253,9 +253,9 @@ No [notebook 05](notebooks/05_service_text.ipynb), os métodos aprendem com as 9
 
 Para dizer o grupo, n-gramas de 2 a 4 caracteres ganham do transformer (`paraphrase-multilingual-MiniLM-L12-v2`). As descrições são curtas, abreviadas e com letras faltando, e pedaços de palavra sobrevivem a isso melhor que o sentido da frase. Os embeddings servem para outra coisa: sugerir o serviço atual equivalente. Para isso, primeiro reparo as palavras quebradas com o vocabulário atual ("MANUTENO" vira "MANUTENCAO" quando a palavra completa existe no catálogo), o que leva a busca por similaridade de 60% para 94% de chamados no grupo certo. Acima de 0,9 de similaridade, todas as sugestões acertaram o grupo; abaixo disso, a revisão manual de poucas descrições resolve o resto. O de-para está em [docs/service_mapping.csv](docs/service_mapping.csv).
 
-## Assistente "Pergunte aos dados"
+## Assistente de IA
 
-A pessoa escreve uma pergunta em português, como "quais os 5 bairros com mais chamados de drenagem em aberto?". Um modelo de linguagem (Claude Haiku 5.5, pelo OpenRouter) recebe as tabelas e colunas da gold, os valores das categorias e o significado de cada campo, escreve a SQL, vê o resultado e responde. Ele pode rodar algumas consultas seguidas para corrigir os próprios erros, e cada consulta aparece abaixo da resposta. Trocar de modelo é mudar `OPENROUTER_MODEL`.
+O painel tem um agente de conversa, aberto de qualquer página pelo botão no canto da tela. Ele responde em português perguntas sobre os dados ("quais os 5 bairros com mais chamados de drenagem em aberto?") e sobre o próprio painel ("onde vejo quanto tempo cada serviço demora?"). Para os dados, um modelo de linguagem (Claude Haiku 5.5, acessado pela API do OpenRouter) recebe as tabelas e colunas da gold, os valores das categorias e o significado de cada campo, escreve a SQL, vê o resultado e responde, podendo rodar algumas consultas seguidas para corrigir os próprios erros. Para o painel, ele recebe uma descrição de cada página e é instruído a citar só o que está nela. As últimas mensagens da conversa vão junto com cada pergunta, então uma continuação como "e em 2024?" mantém o contexto. Trocar de modelo é mudar `OPENROUTER_MODEL`.
 
 Como o modelo escreve SQL, a segurança não depende dele. São três barreiras, cada uma valendo mesmo que a anterior falhe:
 
@@ -263,24 +263,24 @@ Como o modelo escreve SQL, a segurança não depende dele. São três barreiras,
 2. Usuário de banco `assistant_readonly`, que só lê essas tabelas e não enxerga o schema `ops`.
 3. Transação somente leitura e no máximo 10 segundos por consulta.
 
-A chave da API fica no servidor; o navegador recebe só a resposta. Na versão publicada, a chave tem limite de gasto e cada visita pode fazer 8 perguntas. As barreiras impedem que o assistente altere dados, mas não que ele interprete mal uma pergunta, e por isso a SQL fica sempre visível.
+A chave da API fica no servidor; o navegador recebe só a resposta. Na versão publicada, a chave tem limite de gasto e cada visita pode fazer 8 perguntas. As barreiras impedem que o assistente altere dados, mas não que ele interprete mal uma pergunta, e por isso cada resposta guarda as consultas usadas, que podem ser abertas e conferidas.
 
 ## Painel
 
-O painel, em [recife-156.streamlit.app](https://recife-156.streamlit.app), usa Streamlit e Plotly. Cada página abre com um título que já diz a conclusão, calculada a partir dos dados e dos filtros escolhidos, e cada gráfico destaca em cor só o que o título comenta. Termos como RPA aparecem sempre com o nome da região ("RPA 6 · Sul"), e a página de abertura explica os termos usados.
+O painel, em [recife-156.streamlit.app](https://recife-156.streamlit.app), usa Streamlit e Plotly. Cada página abre com um título e uma frase que dizem para que ela serve, seguidos dos números principais em fileira. Os gráficos ficam em painéis com borda, cada um com um título que já diz a conclusão, calculada a partir dos dados e dos filtros escolhidos, e com cor só no que o título comenta. Termos como RPA aparecem com o nome da região ("Sul (RPA 6)"), e a página de abertura explica os termos usados.
 
 | Página | O que responde |
 |---|---|
-| [Visão geral](docs/img/dashboard_overview.png) | Os achados principais e um mapa da fila por bairro sobre o OpenStreetMap. Passar o mouse mostra o bairro e a RPA; clicar abre um resumo calculado dos dados, que compara a espera do bairro com a da cidade nos mesmos serviços. As colunas 3D ficam como segunda opção |
+| [Visão geral](docs/img/dashboard_overview.png) | Os números e achados principais e um mapa da fila por bairro sobre o OpenStreetMap. Passar o mouse mostra o bairro e a região; clicar abre um resumo calculado dos dados, que compara a espera do bairro com a da cidade nos mesmos serviços. As colunas 3D ficam como segunda opção |
 | [A fila hoje](docs/img/dashboard_operational.png) | O que chegou nos últimos dias, o ritmo da semana e onde a fila está parada, por bairro e serviço |
 | [Tempo de atendimento](docs/img/dashboard_managerial.png) | Quanto cada grupo espera (um clique no grupo abre os serviços dele), como a região muda a espera e se entra mais do que sai |
 | [Tendência e chuva](docs/img/dashboard_strategic.png) | Variação entre anos, sazonalidade e efeito da chuva forte por serviço, com teste estatístico |
-| [Previsão de atraso](docs/img/dashboard_predictions.png) | Validação temporal, comparação com as referências, onde o modelo ganha, calibração, a fila de agora e um simulador |
+| [Previsão de atraso](docs/img/dashboard_predictions.png) | Em linguagem simples: como o modelo decide, quanto ele acerta comparado com a regra pelo serviço, se as chances batem com o que acontece, a fila de agora e um simulador. Os detalhes técnicos ficam neste README |
 | [Histórico com NLP](docs/img/dashboard_history.png) | Comparação dos métodos, efeito do reparo de texto e o de-para completo |
-| [Pergunte aos dados](docs/img/dashboard_assistant.png) | O assistente, com a SQL sempre visível |
-| [Pipeline e qualidade](docs/img/dashboard_pipeline.png) | Checagens da última carga, versão de cada fonte, execuções e o ganho dos índices |
+| [Assistente de IA](docs/img/dashboard_assistant.png) | O agente de conversa, com sugestões de perguntas e as consultas usadas em cada resposta |
+| [Pipeline e qualidade](docs/img/dashboard_pipeline.png) | O fluxo dos dados do portal até o banco, as checagens da última carga, a versão de cada fonte, as execuções e o ganho dos índices |
 
-O tema é escuro, com uma paleta categórica validada para daltonismo sobre esse fundo. Os títulos entram com uma animação curta, os números contam até o valor e os gráficos deslizam para os novos valores quando um filtro muda; com "reduzir movimento" ligado no sistema, nada se mexe. Os nomes, que nos dados abertos vêm em maiúsculas e sem acento, ganham acentos só na tela.
+A paleta é escura, com fundo verde quase preto, texto creme, bege como destaque e vermelho só onde algo pede atenção. Bege e verde-acinzentado ficam próximos demais para separar duas séries, então os gráficos com duas linhas usam bege e creme, que diferem pelo claro e escuro, e escrevem o nome na própria linha. Os títulos entram com uma animação curta e os números contam até o valor; só links e botões reagem ao mouse, para nada parecer clicável sem ser. Com "reduzir movimento" ligado no sistema, nada se mexe. Os nomes, que nos dados abertos vêm em maiúsculas e sem acento, ganham acentos só na tela.
 
 ![Página de previsão de atraso](docs/img/dashboard_predictions.png)
 
@@ -288,7 +288,7 @@ O painel mostra a situação em 31/12/2025, a data mais recente dos arquivos abe
 
 ## Testes e integração contínua
 
-Os 51 testes em [tests](tests) cobrem as regras de limpeza, a deduplicação entre arquivos anuais, a escolha do arquivo no portal, a ingestão incremental, as validações de qualidade, o esquema estrela, o clima, as variáveis do modelo (alvo, demanda sem olhar o futuro, divisão temporal), o NLP, a validação de SQL, o laço do assistente com um cliente simulado, os rótulos e o resumo por bairro do painel e a conversão para documentos do MongoDB. Nenhum precisa de banco, internet ou chave de API. O workflow [.github/workflows/ci.yml](.github/workflows/ci.yml) roda lint, formatação e testes em todo pull request.
+Os 53 testes em [tests](tests) cobrem as regras de limpeza, a deduplicação entre arquivos anuais, a escolha do arquivo no portal, a ingestão incremental, as validações de qualidade, o esquema estrela, o clima, as variáveis do modelo (alvo, demanda sem olhar o futuro, divisão temporal), o NLP, a validação de SQL, o laço do assistente com um cliente simulado (incluindo o histórico da conversa), os rótulos e o resumo por bairro do painel e a conversão para documentos do MongoDB. Nenhum precisa de banco, internet ou chave de API. O workflow [.github/workflows/ci.yml](.github/workflows/ci.yml) roda lint, formatação e testes em todo pull request.
 
 ## Como usei IA no desenvolvimento
 

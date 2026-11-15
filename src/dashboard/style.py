@@ -2,24 +2,35 @@ import plotly.graph_objects as go
 import plotly.io as pio
 import streamlit as st
 
-# Categorical slots in a fixed order, validated for color vision deficiency on the dark ground
-SERIES = ["#3d9be9", "#d95926", "#199e70", "#c98500"]
-ACCENT = SERIES[0]
-# Ordinal blue steps for ordered categories such as how long a ticket has waited: on a dark
-# ground the brightest step is the one that matters most
-SEQUENTIAL = ["#1f4f8a", "#3d9be9", "#a8d4fb"]
-# Continuous blue ramp for heatmaps: the darkest step means "close to zero"
-BLUE_SCALE = ["#132238", "#173a63", "#1f5a96", "#2f7cc7", "#4f9de6", "#86c0f5", "#c4e2ff"]
-# Diverging poles: more tickets than before (red) and fewer (blue)
-UP, DOWN = "#e66767", "#3d9be9"
-# Marks that give context but are not the point of the chart
-NEUTRAL = "#353d4c"
+# The palette: near-black green ground, cream ink, sage for secondary text, tan as the accent
+# and red only where something needs attention
+BACKGROUND = "#080f0f"
+CREAM = "#eff2c0"
+SAGE = "#a4bab7"
+TAN = "#bea57d"
+RED = "#a52422"
 
-BACKGROUND = "#0a0d14"
-INK = "#e9edf3"
-INK_2 = "#b3bccb"
-MUTED = "#8891a1"
-GRID = "#1d2430"
+# Categorical slots in a fixed order. Tan and sage are too close to tell apart, so the first
+# two slots differ by lightness (tan and cream), and two-series charts also label each line
+SERIES = [TAN, CREAM, SAGE, RED]
+ACCENT = TAN
+# Ordered categories such as how long a ticket has waited: sage while it is recent, tan as it
+# ages and red once it has waited too long
+SEQUENTIAL = [SAGE, TAN, RED]
+# Continuous ramp for heatmaps and maps, from deep sage (little) through tan to red (a lot).
+# Every step stays dark enough for cream text on top of it
+HEAT_SCALE = ["#16302d", "#24504b", "#3d716a", "#7a7a55", "#a97f4f", "#b3533a", RED]
+# Diverging poles: more tickets than before (red) and fewer (sage)
+UP, DOWN = RED, SAGE
+# Marks that give context or the comparison, next to the tan that carries the point
+NEUTRAL = SAGE
+
+INK = CREAM
+INK_2 = SAGE
+MUTED = "#7f908d"
+GRID = "#1a2725"
+SURFACE = "#0e1817"
+LINE_STRONG = "#2e403c"
 FONT = "Outfit, system-ui, -apple-system, sans-serif"
 
 pio.templates["recife"] = go.layout.Template(
@@ -55,8 +66,8 @@ pio.templates["recife"] = go.layout.Template(
             "font": {"size": 12},
         },
         "hoverlabel": {
-            "bgcolor": "#131824",
-            "bordercolor": "#2a3242",
+            "bgcolor": SURFACE,
+            "bordercolor": LINE_STRONG,
             "font": {"family": FONT, "size": 13, "color": INK},
         },
         # Bars and lines glide to their new values when a filter changes
@@ -122,7 +133,7 @@ def ranked_bars(
                 yshift=9,
                 font={"size": 12, "color": INK_2},
             )
-        fig.update_layout(margin={"l": 2, "r": 8, "t": 22, "b": 4})
+        fig.update_layout(margin={"l": 6, "r": 8, "t": 22, "b": 4})
     return fig
 
 
