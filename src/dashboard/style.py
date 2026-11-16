@@ -2,35 +2,35 @@ import plotly.graph_objects as go
 import plotly.io as pio
 import streamlit as st
 
-# The palette: near-black green ground, cream ink, sage for secondary text, tan as the accent
-# and red only where something needs attention
-BACKGROUND = "#080f0f"
-CREAM = "#eff2c0"
-SAGE = "#a4bab7"
-TAN = "#bea57d"
-RED = "#a52422"
+from src.dashboard.palette import (
+    ALERT,
+    LINE,
+    LINE_STRONG,
+    MAGNITUDE,
+    PRIMARY,
+    SECONDARY,
+    SURFACE,
+    TEXT,
+    TEXT_MUTED,
+    TEXT_SOFT,
+)
 
-# Categorical slots in a fixed order. Tan and sage are too close to tell apart, so the first
-# two slots differ by lightness (tan and cream), and two-series charts also label each line
-SERIES = [TAN, CREAM, SAGE, RED]
-ACCENT = TAN
-# Ordered categories such as how long a ticket has waited: sage while it is recent, tan as it
-# ages and red once it has waited too long
-SEQUENTIAL = [SAGE, TAN, RED]
-# Continuous ramp for heatmaps and maps, from deep sage (little) through tan to red (a lot).
-# Every step stays dark enough for cream text on top of it
-HEAT_SCALE = ["#16302d", "#24504b", "#3d716a", "#7a7a55", "#a97f4f", "#b3533a", RED]
+# Chart roles. Colours are set in palette.py; here they get a job
+SERIES = [PRIMARY, SECONDARY, TEXT, ALERT]
+ACCENT = PRIMARY
+# Ordered categories such as how long a ticket has waited: sage while recent, blue as it ages,
+# red once it has waited too long
+SEQUENTIAL = [SECONDARY, PRIMARY, ALERT]
+HEAT_SCALE = MAGNITUDE
 # Diverging poles: more tickets than before (red) and fewer (sage)
-UP, DOWN = RED, SAGE
-# Marks that give context or the comparison, next to the tan that carries the point
-NEUTRAL = SAGE
+UP, DOWN = ALERT, SECONDARY
+# Marks that give context or the comparison, next to the blue that carries the point
+NEUTRAL = SECONDARY
 
-INK = CREAM
-INK_2 = SAGE
-MUTED = "#7f908d"
-GRID = "#1a2725"
-SURFACE = "#0e1817"
-LINE_STRONG = "#2e403c"
+INK = TEXT
+INK_2 = TEXT_SOFT
+MUTED = TEXT_MUTED
+GRID = LINE
 FONT = "Outfit, system-ui, -apple-system, sans-serif"
 
 pio.templates["recife"] = go.layout.Template(

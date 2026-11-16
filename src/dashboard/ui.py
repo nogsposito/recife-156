@@ -5,9 +5,20 @@ from html import escape
 
 import streamlit as st
 
-from src.dashboard.style import BACKGROUND, CREAM, LINE_STRONG, MUTED, RED, SAGE, SURFACE, TAN
-
-LINE = "#1d2b29"
+from src.dashboard.palette import (
+    ALERT,
+    ALERT_HOVER,
+    BACKGROUND,
+    LINE,
+    LINE_STRONG,
+    PRIMARY,
+    SECONDARY,
+    SURFACE,
+    TEXT,
+    TEXT_MUTED,
+    TEXT_SOFT,
+    rgba,
+)
 
 CSS = f"""
 :root {{
@@ -16,17 +27,17 @@ CSS = f"""
 }}
 [data-testid="stAppViewContainer"] {{
     background:
-        radial-gradient(900px 420px at 82% -10%, rgba(190, 165, 125, .10), transparent 65%),
-        radial-gradient(700px 380px at 5% 0%, rgba(164, 186, 183, .07), transparent 60%),
+        radial-gradient(900px 420px at 82% -10%, {rgba(PRIMARY, 0.1)}, transparent 65%),
+        radial-gradient(700px 380px at 5% 0%, {rgba(SECONDARY, 0.07)}, transparent 60%),
         {BACKGROUND};
 }}
 [data-testid="stHeader"] {{ background: transparent; }}
 [data-testid="stMainBlockContainer"] {{
     max-width: 1180px; padding-top: 3.2rem; padding-bottom: 6.5rem;
 }}
-h1, h2, h3 {{ letter-spacing: -0.02em; color: {CREAM}; }}
+h1, h2, h3 {{ letter-spacing: -0.02em; color: {TEXT}; }}
 [data-testid="stSidebarNav"] span {{ font-size: 0.93rem; }}
-[data-testid="stCaptionContainer"] {{ color: {MUTED}; }}
+[data-testid="stCaptionContainer"] {{ color: {TEXT_MUTED}; }}
 
 /* Page header: reads like the title of a tab, with its purpose in one line */
 .r-head {{
@@ -35,13 +46,13 @@ h1, h2, h3 {{ letter-spacing: -0.02em; color: {CREAM}; }}
 }}
 .r-head-icon {{
     flex: none; width: 3.2rem; height: 3.2rem; margin-top: .3rem; border-radius: 12px;
-    display: grid; place-items: center; color: {BACKGROUND}; background: {TAN};
+    display: grid; place-items: center; color: {BACKGROUND}; background: {PRIMARY};
     font-family: "Material Symbols Rounded"; font-size: 1.75rem; line-height: 1;
     font-feature-settings: "liga"; animation: r-up .5s var(--r-ease-enter) both;
 }}
 .r-title {{
     font-size: clamp(2.3rem, 1.5rem + 2.2vw, 3.3rem); font-weight: 500; line-height: 1.05;
-    color: {CREAM}; letter-spacing: -0.04em; margin: 0; padding: 0;
+    color: {TEXT}; letter-spacing: -0.04em; margin: 0; padding: 0;
 }}
 .r-w {{ display: inline-block; overflow: hidden; vertical-align: bottom; padding-bottom: .08em; }}
 .r-w > span {{
@@ -49,17 +60,17 @@ h1, h2, h3 {{ letter-spacing: -0.02em; color: {CREAM}; }}
     animation-delay: calc(var(--i) * 40ms);
 }}
 .r-purpose {{
-    color: {SAGE}; font-size: 1.08rem; line-height: 1.55; margin: .55rem 0 0; max-width: 64ch;
+    color: {TEXT_SOFT}; font-size: 1.08rem; line-height: 1.55; margin: .55rem 0 0; max-width: 64ch;
     animation: r-up .5s var(--r-ease-enter) .2s both;
 }}
 
 /* A sentence set large, with its numbers in the accent colour */
 .r-statement {{
     font-size: clamp(1.3rem, 1rem + 1vw, 1.8rem); line-height: 1.45; font-weight: 400;
-    color: {CREAM}; letter-spacing: -0.015em; max-width: 46ch; margin: 0 0 2rem;
+    color: {TEXT}; letter-spacing: -0.015em; max-width: 46ch; margin: 0 0 2rem;
     animation: r-up .55s var(--r-ease-enter) .3s both;
 }}
-.r-hl {{ color: {TAN}; font-weight: 500; white-space: nowrap; }}
+.r-hl {{ color: {PRIMARY}; font-weight: 500; white-space: nowrap; }}
 
 /* Key figures in a row, divided by hairlines, with no boxes around them */
 .r-facts {{
@@ -74,17 +85,17 @@ h1, h2, h3 {{ letter-spacing: -0.02em; color: {CREAM}; }}
 /* A short colour bar over each number, cycling through the palette */
 .r-fact::before {{
     content: ""; display: block; width: 2.4rem; height: 4px; border-radius: 2px;
-    margin-bottom: .75rem; background: {TAN};
+    margin-bottom: .75rem; background: {PRIMARY};
 }}
-.r-fact:nth-child(3n+2)::before {{ background: {SAGE}; }}
-.r-fact:nth-child(3n)::before {{ background: {CREAM}; }}
+.r-fact:nth-child(3n+2)::before {{ background: {SECONDARY}; }}
+.r-fact:nth-child(3n)::before {{ background: {TEXT}; }}
 .r-fact-value {{
-    font-size: 2.1rem; font-weight: 500; color: {CREAM}; line-height: 1.1;
+    font-size: 2.1rem; font-weight: 500; color: {TEXT}; line-height: 1.1;
     letter-spacing: -0.03em;
 }}
-.r-fact-label {{ font-size: 0.9rem; color: {SAGE}; margin-top: 0.3rem; line-height: 1.4; }}
+.r-fact-label {{ font-size: 0.9rem; color: {TEXT_SOFT}; margin-top: 0.3rem; line-height: 1.4; }}
 .r-fact-note {{
-    font-size: 0.76rem; color: {MUTED}; margin-top: 0.35rem; line-height: 1.4;
+    font-size: 0.76rem; color: {TEXT_MUTED}; margin-top: 0.35rem; line-height: 1.4;
     font-family: "DM Mono", ui-monospace, monospace;
 }}
 @media (max-width: 760px) {{
@@ -106,20 +117,20 @@ h1, h2, h3 {{ letter-spacing: -0.02em; color: {CREAM}; }}
 /* Group headings split a long page into parts; section titles state a chart's takeaway */
 .r-group {{ margin: 2.8rem 0 1rem; }}
 .r-group h2 {{ font-size: 1.55rem; font-weight: 500; margin: 0; padding: 0; }}
-.r-group p {{ color: {SAGE}; font-size: 0.97rem; margin: .3rem 0 0; max-width: 72ch; }}
+.r-group p {{ color: {TEXT_SOFT}; font-size: 0.97rem; margin: .3rem 0 0; max-width: 72ch; }}
 .r-section {{ margin: 0 0 0.6rem; }}
 .r-section h3 {{
     font-size: 1.18rem; font-weight: 500; line-height: 1.35; margin: 0 0 0.3rem; padding: 0;
 }}
 .r-section p {{
-    color: {SAGE}; font-size: 0.92rem; line-height: 1.55; margin: 0; max-width: 78ch;
+    color: {TEXT_SOFT}; font-size: 0.92rem; line-height: 1.55; margin: 0; max-width: 78ch;
 }}
 
 /* Panels: one bordered box per chart, so each title sits with its own chart and controls.
    Panels side by side stretch to the tallest one; a panel with a fixed height keeps it. */
 [class*="st-key-panel-"], [class*="st-key-pfixed-"] {{
-    background: {SURFACE}; border: 1px solid rgba(164, 186, 183, .16) !important;
-    border-top: 3px solid rgba(190, 165, 125, .75) !important; border-radius: 14px;
+    background: {SURFACE}; border: 1px solid {rgba(TEXT_SOFT, 0.16)} !important;
+    border-top: 3px solid {rgba(PRIMARY, 0.75)} !important; border-radius: 14px;
     padding: 1.15rem 1.3rem 1rem !important;
 }}
 [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [class*="st-key-panel-"]) {{
@@ -136,14 +147,14 @@ h1, h2, h3 {{ letter-spacing: -0.02em; color: {CREAM}; }}
 }}
 [class*="st-key-panel-"] [data-testid="stMarkdownContainer"] p,
 [class*="st-key-pfixed-"] [data-testid="stMarkdownContainer"] p {{
-    color: {SAGE}; font-size: .95rem; line-height: 1.55;
+    color: {TEXT_SOFT}; font-size: .95rem; line-height: 1.55;
 }}
 [class*="st-key-panel-"] [data-testid="stMarkdownContainer"] strong {{
-    color: {CREAM}; font-weight: 500; font-size: 1.05rem;
+    color: {TEXT}; font-weight: 500; font-size: 1.05rem;
 }}
-.r-panel-place {{ color: {MUTED}; font-size: .86rem; margin: 0; }}
+.r-panel-place {{ color: {TEXT_MUTED}; font-size: .86rem; margin: 0; }}
 .r-panel-name {{
-    font-size: 1.6rem; font-weight: 500; letter-spacing: -0.03em; color: {CREAM};
+    font-size: 1.6rem; font-weight: 500; letter-spacing: -0.03em; color: {TEXT};
     margin: .1rem 0 .9rem;
 }}
 [class*="st-key-pfixed-"] .r-facts {{
@@ -157,17 +168,17 @@ h1, h2, h3 {{ letter-spacing: -0.02em; color: {CREAM}; }}
 }}
 .r-term {{ border-top: 1px solid {LINE_STRONG}; padding-top: 0.6rem; margin: 0; }}
 .r-term-name {{
-    font-family: "DM Mono", ui-monospace, monospace; font-size: 0.74rem; color: {TAN};
+    font-family: "DM Mono", ui-monospace, monospace; font-size: 0.74rem; color: {PRIMARY};
     letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.25rem;
 }}
-.r-term-text {{ margin: 0; color: {SAGE}; font-size: 0.88rem; line-height: 1.5; }}
+.r-term-text {{ margin: 0; color: {TEXT_SOFT}; font-size: 0.88rem; line-height: 1.5; }}
 
 .r-callout {{
-    background: {TAN}; border-radius: 12px; padding: 0.9rem 1.15rem; color: {BACKGROUND};
+    background: {PRIMARY}; border-radius: 12px; padding: 0.9rem 1.15rem; color: {BACKGROUND};
     font-weight: 500;
     font-size: 0.96rem; line-height: 1.55; margin: 0.9rem 0;
 }}
-.r-note {{ color: {MUTED}; font-size: 0.8rem; line-height: 1.5; margin: 0.4rem 0 0.2rem; }}
+.r-note {{ color: {TEXT_MUTED}; font-size: 0.8rem; line-height: 1.5; margin: 0.4rem 0 0.2rem; }}
 
 /* Pipeline: stages joined by arrows; a pulse runs along each arrow, stage after stage */
 .r-pipe {{
@@ -180,18 +191,18 @@ h1, h2, h3 {{ letter-spacing: -0.02em; color: {CREAM}; }}
     animation: r-node 3s var(--r-ease) 3 both; animation-delay: calc(1s + var(--i) * .75s);
 }}
 .r-pipe-tag {{
-    font-family: "DM Mono", ui-monospace, monospace; font-size: .7rem; color: {TAN};
+    font-family: "DM Mono", ui-monospace, monospace; font-size: .7rem; color: {PRIMARY};
     letter-spacing: .08em; text-transform: uppercase;
 }}
-.r-pipe-name {{ font-size: 1rem; font-weight: 500; color: {CREAM}; margin: .2rem 0 .35rem; }}
-.r-pipe-text {{ color: {SAGE}; font-size: .8rem; line-height: 1.45; }}
+.r-pipe-name {{ font-size: 1rem; font-weight: 500; color: {TEXT}; margin: .2rem 0 .35rem; }}
+.r-pipe-text {{ color: {TEXT_SOFT}; font-size: .8rem; line-height: 1.45; }}
 .r-pipe-figure {{
-    color: {CREAM}; font-size: .8rem; margin-top: .5rem;
+    color: {TEXT}; font-size: .8rem; margin-top: .5rem;
     font-family: "DM Mono", ui-monospace, monospace;
 }}
 .r-pipe-chip {{
     border: 1px solid {LINE_STRONG}; border-radius: 8px; padding: .32rem .55rem;
-    color: {SAGE}; font-size: .8rem; line-height: 1.35; margin-top: .4rem;
+    color: {TEXT_SOFT}; font-size: .8rem; line-height: 1.35; margin-top: .4rem;
 }}
 .r-pipe-link {{
     position: relative; align-self: center; height: 2px; background: {LINE_STRONG};
@@ -204,13 +215,13 @@ h1, h2, h3 {{ letter-spacing: -0.02em; color: {CREAM}; }}
 }}
 .r-pipe-link::before {{
     content: ""; position: absolute; top: -1px; left: 0; width: 34%; height: 4px;
-    border-radius: 2px; background: linear-gradient(90deg, transparent, {TAN});
+    border-radius: 2px; background: linear-gradient(90deg, transparent, {PRIMARY});
     opacity: 0; animation: r-flow 3s linear 3 both;
     animation-delay: calc(1s + var(--i) * .75s);
 }}
 .r-pipe-label {{
     position: absolute; left: 0; right: 0; bottom: 9px; text-align: center;
-    color: {MUTED}; font-size: .66rem; line-height: 1.25;
+    color: {TEXT_MUTED}; font-size: .66rem; line-height: 1.25;
 }}
 @media (max-width: 900px) {{
     .r-pipe {{ grid-template-columns: 1fr; }}
@@ -223,7 +234,7 @@ h1, h2, h3 {{ letter-spacing: -0.02em; color: {CREAM}; }}
     }}
     .r-pipe-link::before {{
         width: 4px; height: 34%; left: -1px; top: 0;
-        background: linear-gradient(180deg, transparent, {TAN});
+        background: linear-gradient(180deg, transparent, {PRIMARY});
         animation-name: r-flow-down;
     }}
     .r-pipe-label {{ left: 14px; right: auto; bottom: auto; top: 14px; white-space: nowrap; }}
@@ -251,16 +262,16 @@ h1, h2, h3 {{ letter-spacing: -0.02em; color: {CREAM}; }}
     position: fixed; right: 1.6rem; bottom: 1.5rem; z-index: 999990; width: auto !important;
 }}
 .st-key-agent-fab [data-testid="stPageLink-NavLink"] {{
-    background: {RED}; border-radius: 999px; padding: .62rem 1.15rem .62rem .95rem;
+    background: {ALERT}; border-radius: 999px; padding: .62rem 1.15rem .62rem .95rem;
     box-shadow: 0 10px 28px rgba(0, 0, 0, .45); gap: .45rem;
     transition: transform 150ms var(--r-ease), background-color 150ms var(--r-ease);
 }}
 .st-key-agent-fab [data-testid="stPageLink-NavLink"]:hover {{
-    background: #b8302d; transform: translateY(-2px);
+    background: {ALERT_HOVER}; transform: translateY(-2px);
 }}
 .st-key-agent-fab [data-testid="stPageLink-NavLink"] p,
 .st-key-agent-fab [data-testid="stPageLink-NavLink"] span {{
-    color: {CREAM} !important; font-weight: 500;
+    color: {TEXT} !important; font-weight: 500;
 }}
 
 @keyframes r-rise {{ from {{ transform: translateY(105%); }} }}
@@ -274,7 +285,7 @@ h1, h2, h3 {{ letter-spacing: -0.02em; color: {CREAM}; }}
     0% {{ top: 0; opacity: 0; }} 15% {{ opacity: 1; }} 70% {{ opacity: 1; }}
     100% {{ top: 66%; opacity: 0; }}
 }}
-@keyframes r-node {{ 0%, 100% {{ border-color: {LINE}; }} 40% {{ border-color: {TAN}; }} }}
+@keyframes r-node {{ 0%, 100% {{ border-color: {LINE}; }} 40% {{ border-color: {PRIMARY}; }} }}
 
 @media (prefers-reduced-motion: reduce) {{
     .r-head-icon, .r-w > span, .r-purpose, .r-statement, .r-fact, .r-c, .r-pipe-node {{
