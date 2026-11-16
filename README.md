@@ -280,7 +280,7 @@ O painel, em [recife-156.streamlit.app](https://recife-156.streamlit.app), usa S
 | [Assistente de IA](docs/img/dashboard_assistant.png) | O agente de conversa, com sugestões de perguntas e as consultas usadas em cada resposta |
 | [Pipeline e qualidade](docs/img/dashboard_pipeline.png) | O fluxo dos dados do portal até o banco, as checagens da última carga, a versão de cada fonte, as execuções e o ganho dos índices |
 
-A paleta é escura, com fundo verde quase preto, texto creme, bege como destaque e vermelho só onde algo pede atenção. Bege e verde-acinzentado ficam próximos demais para separar duas séries, então os gráficos com duas linhas usam bege e creme, que diferem pelo claro e escuro, e escrevem o nome na própria linha. Os títulos entram com uma animação curta e os números contam até o valor; só links e botões reagem ao mouse, para nada parecer clicável sem ser. Com "reduzir movimento" ligado no sistema, nada se mexe. Os nomes, que nos dados abertos vêm em maiúsculas e sem acento, ganham acentos só na tela.
+As cores ficam todas em [src/dashboard/palette.py](src/dashboard/palette.py): fundo verde quase preto, texto branco, azul para o dado de que cada gráfico trata, verde-sálvia para comparações e contexto e vermelho para atraso, chamados velhos e fila que cresce. O resto do código usa esses papéis, nunca um código de cor, então trocar uma cor é mudar uma linha; o tema do Streamlit repete as cores base e um teste falha se os dois divergirem. Azul e verde-sálvia passam no teste de separação para daltonismo. Os títulos entram com uma animação curta e os números contam até o valor; só links e botões reagem ao mouse, para nada parecer clicável sem ser. Com "reduzir movimento" ligado no sistema, nada se mexe. Os nomes, que nos dados abertos vêm em maiúsculas e sem acento, ganham acentos só na tela.
 
 ![Página de previsão de atraso](docs/img/dashboard_predictions.png)
 
@@ -288,7 +288,7 @@ O painel mostra a situação em 31/12/2025, a data mais recente dos arquivos abe
 
 ## Testes e integração contínua
 
-Os 53 testes em [tests](tests) cobrem as regras de limpeza, a deduplicação entre arquivos anuais, a escolha do arquivo no portal, a ingestão incremental, as validações de qualidade, o esquema estrela, o clima, as variáveis do modelo (alvo, demanda sem olhar o futuro, divisão temporal), o NLP, a validação de SQL, o laço do assistente com um cliente simulado (incluindo o histórico da conversa), os rótulos e o resumo por bairro do painel e a conversão para documentos do MongoDB. Nenhum precisa de banco, internet ou chave de API. O workflow [.github/workflows/ci.yml](.github/workflows/ci.yml) roda lint, formatação e testes em todo pull request.
+Os 55 testes em [tests](tests) cobrem as regras de limpeza, a deduplicação entre arquivos anuais, a escolha do arquivo no portal, a ingestão incremental, as validações de qualidade, o esquema estrela, o clima, as variáveis do modelo (alvo, demanda sem olhar o futuro, divisão temporal), o NLP, a validação de SQL, o laço do assistente com um cliente simulado (incluindo o histórico da conversa), os rótulos e o resumo por bairro do painel, a paleta igual entre o código e o tema do Streamlit e a conversão para documentos do MongoDB. Nenhum precisa de banco, internet ou chave de API. O workflow [.github/workflows/ci.yml](.github/workflows/ci.yml) roda lint, formatação e testes em todo pull request.
 
 ## Como usei IA no desenvolvimento
 

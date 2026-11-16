@@ -1,11 +1,15 @@
+# Colours repeat src/dashboard/palette.py, which is where they are chosen. Streamlit cannot
+# import Python here, so tests/test_palette.py checks that both say the same.
 [theme]
 base = "dark"
-primaryColor = "#bea57d"
+# PRIMARY
+primaryColor = "#4a86c5"
+linkColor = "#4a86c5"
+# BACKGROUND, SURFACE, TEXT and LINE
 backgroundColor = "#080f0f"
-secondaryBackgroundColor = "#0f1a19"
-textColor = "#eff2c0"
-borderColor = "#1d2b29"
-linkColor = "#bea57d"
+secondaryBackgroundColor = "#0f1818"
+textColor = "#f2f5f5"
+borderColor = "#1d2928"
 linkUnderline = false
 baseRadius = "10px"
 showWidgetBorder = true
@@ -13,12 +17,14 @@ showSidebarBorder = true
 font = "Outfit:https://fonts.googleapis.com/css2?family=Outfit:wght@400..700&display=swap, sans-serif"
 codeFont = "DM Mono:https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap, monospace"
 headingFontWeights = [500, 500, 500, 500, 500, 500]
-dataframeHeaderBackgroundColor = "#0f1a19"
-chartCategoricalColors = ["#bea57d", "#eff2c0", "#a4bab7", "#a52422"]
+dataframeHeaderBackgroundColor = "#0f1818"
+# PRIMARY, SECONDARY, TEXT and ALERT, the order of SERIES in style.py
+chartCategoricalColors = ["#4a86c5", "#6aa57c", "#f2f5f5", "#a52422"]
 
 [theme.sidebar]
-backgroundColor = "#0b1413"
-secondaryBackgroundColor = "#0f1a19"
+# BACKGROUND and SURFACE
+backgroundColor = "#080f0f"
+secondaryBackgroundColor = "#0f1818"
 
 [client]
 toolbarMode = "viewer"

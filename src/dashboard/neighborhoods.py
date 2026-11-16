@@ -8,6 +8,15 @@ from streamlit_folium import st_folium
 from src.config import PROJECT_ROOT
 from src.dashboard.data import fmt_int, fmt_num, fmt_pct
 from src.dashboard.labels import rpa_label
+from src.dashboard.palette import (
+    BACKGROUND,
+    LINE_STRONG,
+    MAGNITUDE,
+    SURFACE,
+    TEXT,
+    TEXT_MUTED,
+    TEXT_SOFT,
+)
 
 # Official boundaries from the Recife open data portal ("Bairros do Recife"), simplified to ~6 m
 BOUNDARIES_PATH = PROJECT_ROOT / "app" / "assets" / "recife_bairros.geojson"
@@ -19,27 +28,27 @@ ALIASES = {
 }
 # Groups that rise after heavy rain (notebook 03)
 RAIN_GROUPS = {"Drenagem", "Arborização"}
-# Dark to bright, from tan to cream: the brighter the neighborhood, the more open tickets
-STEPS = ["#24504b", "#3d716a", "#7a7a55", "#a97f4f", "#b3533a", "#a52422"]
+# The brighter the blue of a neighborhood, the more open tickets
+STEPS = MAGNITUDE[1:]
 RECIFE = [-8.045, -34.925]
 TIP_STYLE = (
-    "background-color:#0e1817;color:#eff2c0;border:1px solid #2e403c;border-radius:8px;"
+    f"background-color:{SURFACE};color:{TEXT};border:1px solid {LINE_STRONG};border-radius:8px;"
     "font-family:Outfit,system-ui,sans-serif;font-size:13px;padding:8px 10px;"
 )
 # OpenStreetMap tiles need no key; the filter turns them dark only in the tile layer, so the
 # neighborhood colours on top stay as they are. Leaflet's popup is white by default too.
-POPUP_CSS = """<style>
-.leaflet-tile-pane {
+POPUP_CSS = f"""<style>
+.leaflet-tile-pane {{
   filter: invert(1) hue-rotate(180deg) brightness(.86) contrast(.9) saturate(.3);
-}
-.leaflet-container { background:#080f0f; }
-.leaflet-popup-content-wrapper, .leaflet-popup-tip { background:#0e1817; color:#eff2c0;
-  border:1px solid #2e403c; box-shadow:0 8px 24px rgba(0,0,0,.4); }
-.leaflet-popup-content { font-family:Outfit,system-ui,sans-serif; font-size:13px; line-height:1.5;
-  margin:12px 14px; }
-.leaflet-popup-content table th { display:none; }
-.leaflet-popup-content td:first-child { font-weight:600; font-size:15px; }
-.leaflet-container a.leaflet-popup-close-button { color:#7f908d; }
+}}
+.leaflet-container {{ background:{BACKGROUND}; }}
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {{ background:{SURFACE}; color:{TEXT};
+  border:1px solid {LINE_STRONG}; box-shadow:0 8px 24px rgba(0,0,0,.4); }}
+.leaflet-popup-content {{ font-family:Outfit,system-ui,sans-serif; font-size:13px; line-height:1.5;
+  margin:12px 14px; }}
+.leaflet-popup-content table th {{ display:none; }}
+.leaflet-popup-content td:first-child {{ font-weight:600; font-size:15px; }}
+.leaflet-container a.leaflet-popup-close-button {{ color:{TEXT_MUTED}; }}
 </style>"""
 
 
@@ -163,11 +172,11 @@ def neighborhood_map(
         style_function=lambda f: {
             "fillColor": f["properties"]["fill"],
             "fillOpacity": 0.5,
-            "color": "#eff2c0" if f["properties"]["selected"] else "#a4bab7",
+            "color": TEXT if f["properties"]["selected"] else TEXT_SOFT,
             "weight": 2.5 if f["properties"]["selected"] else 0.7,
             "opacity": 0.9 if f["properties"]["selected"] else 0.45,
         },
-        highlight_function=lambda f: {"weight": 2.5, "color": "#eff2c0", "fillOpacity": 0.6},
+        highlight_function=lambda f: {"weight": 2.5, "color": TEXT, "fillOpacity": 0.6},
         tooltip=folium.GeoJsonTooltip(
             fields=["label", "region", "queue"], labels=False, sticky=True, style=TIP_STYLE
         ),

@@ -22,6 +22,7 @@ from src.dashboard.neighborhoods import (
     neighborhood_map,
     neighborhood_stats,
 )
+from src.dashboard.palette import rgba
 from src.dashboard.style import ACCENT, INK, ranked_bars, show
 from src.dashboard.ui import (
     Stage,
@@ -122,8 +123,9 @@ else:
         group(
             f"Entre todos os bairros, {places[leader]['label']} tem a maior fila: "
             f"{fmt_int(by_neighborhood.loc[leader, 'open_tickets'])} chamados em aberto",
-            "Quanto mais vermelho o bairro, mais chamados esperando. Clique num bairro para ver o "
-            "resumo ao lado. Bairros maiores costumam ter filas maiores; o resumo compara a "
+            "Quanto mais forte o azul do bairro, mais chamados esperando. Clique num bairro "
+            "para ver o resumo ao lado. Bairros maiores costumam ter filas maiores; o resumo "
+            "compara a "
             "espera com a da cidade nos mesmos serviços.",
         )
     open_filtered = filtered[filtered["is_open"]]
@@ -224,7 +226,7 @@ with columns[2], panel("fila"):
             mode="lines",
             line={"color": ACCENT, "width": 2},
             fill="tozeroy",
-            fillcolor="rgba(190,165,125,0.14)",
+            fillcolor=rgba(ACCENT, 0.14),
             hovertemplate="%{x|%m/%Y}: %{y:,.0f} em aberto<extra></extra>",
         )
     )

@@ -7,9 +7,9 @@ from src.dashboard.data import fmt_int, fmt_pct, load_tickets, sidebar_filters
 from src.dashboard.labels import RPA_REGIONS
 from src.dashboard.style import (
     ACCENT,
-    CREAM,
     GRID,
     HEAT_SCALE,
+    INK,
     NEUTRAL,
     SERIES,
     ranked_bars,
@@ -154,7 +154,7 @@ with left, panel("regioes"):
         f"{by_rpa.loc[widest].max():.0f} dias",
         "Mediana de dias até o atendimento em cada RPA, as 6 regiões da cidade, nos seis grupos "
         "com mais chamados. Quanto "
-        "mais clara a célula, mais longa a espera.",
+        "forte o azul da célula, mais longa a espera.",
     )
     fig = px.imshow(
         by_rpa,
@@ -167,7 +167,7 @@ with left, panel("regioes"):
         hovertemplate="%{y}, RPA %{x}: %{z:.0f} dias<extra></extra>",
         xgap=2,
         ygap=2,
-        textfont={"color": CREAM},
+        textfont={"color": INK},
     )
     fig.update_xaxes(
         tickvals=list(by_rpa.columns),

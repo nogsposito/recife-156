@@ -12,7 +12,8 @@ from src.dashboard.data import (
     open_with_age,
     sidebar_filters,
 )
-from src.dashboard.style import ACCENT, BACKGROUND, NEUTRAL, SEQUENTIAL, show
+from src.dashboard.palette import BACKGROUND
+from src.dashboard.style import ACCENT, NEUTRAL, SEQUENTIAL, show
 from src.dashboard.ui import Stat, facts, header, note, panel, section
 
 all_tickets = load_tickets()

@@ -4,7 +4,8 @@ import streamlit as st
 
 from src.dashboard.data import fmt_int, fmt_pct, load_model, load_rain, load_tickets
 from src.dashboard.labels import place_label, sentence_label
-from src.dashboard.style import ACCENT, BACKGROUND, NEUTRAL, ranked_bars, show
+from src.dashboard.palette import BACKGROUND
+from src.dashboard.style import ACCENT, NEUTRAL, ranked_bars, show
 from src.dashboard.ui import Stat, callout, facts, header, note, panel, section
 from src.ml.features import HORIZON_DAYS, build_features
 from src.ml.predict import predict_chance, simulated_features
@@ -135,7 +136,7 @@ with panel("chances"):
     section(
         f"As chances que ele dá batem com o que acontece: a maior diferença é de {gap:.0f} pontos",
         "Os chamados do teste foram agrupados pela chance de atendimento que o modelo deu. Em "
-        "cada grupo, a barra verde é a chance prevista e a bege é quantos foram atendidos de "
+        "cada grupo, a barra verde é a chance prevista e a azul é quantos foram atendidos de "
         f"fato em {HORIZON_DAYS} dias.",
     )
     labels = [f"Disse {value:.0%}".replace(".", ",") for value in reliable["predicted"]]

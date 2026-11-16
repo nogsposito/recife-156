@@ -6,7 +6,8 @@ from plotly.subplots import make_subplots
 from src.analysis.weather_effect import pivot_daily, rainy_day_effect
 from src.dashboard.data import fmt_int, fmt_pct, load_daily_tickets_and_rain, load_tickets
 from src.dashboard.labels import sentence_label
-from src.dashboard.style import DOWN, MUTED, RED, SAGE, UP, ranked_bars, show
+from src.dashboard.palette import ALERT, SECONDARY
+from src.dashboard.style import DOWN, MUTED, UP, ranked_bars, show
 from src.dashboard.ui import Stat, callout, facts, header, note, panel, section
 
 MONTHS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
@@ -105,7 +106,7 @@ with right, panel("chuva-mes"):
     figure.add_bar(
         x=labels_x,
         y=monthly["rain_mm"],
-        marker_color=SAGE,
+        marker_color=SECONDARY,
         row=1,
         col=1,
         hovertemplate="%{x}: %{y:.0f} mm de chuva<extra></extra>",
@@ -114,7 +115,7 @@ with right, panel("chuva-mes"):
         x=labels_x,
         y=monthly["tickets"],
         mode="lines+markers",
-        line={"color": RED, "width": 2.5},
+        line={"color": ALERT, "width": 2.5},
         marker={"size": 5},
         row=2,
         col=1,
