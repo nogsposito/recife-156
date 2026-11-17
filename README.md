@@ -292,9 +292,9 @@ Os 55 testes em [tests](tests) cobrem as regras de limpeza, a deduplicação ent
 
 ## Como usei IA no desenvolvimento
 
-Construí o projeto com o Claude Code, assistente de programação da Anthropic, como par de programação. Defini o problema, o escopo, a arquitetura, a stack, o que cada etapa precisava entregar e os critérios de qualidade. O Claude Code escreveu a maior parte do código, das consultas e da documentação e rodou o pipeline, os testes e os notebooks.
+Construí o projeto em grande parte no Claude Code, assistente de programação da Anthropic, como par de programação. Defini o problema, o escopo, a arquitetura, a stack, o que cada etapa precisava entregar e os critérios de qualidade. O Claude Code escreveu a maior parte do código, das consultas e da documentação e rodou o pipeline, os testes e os notebooks.
 
-A regra principal foi não aceitar número nem conclusão sem execução real. Conferir os resultados e rodar tudo do zero com `docker compose up` pegou problemas que passariam despercebidos: a regra de duplicatas que descartava 429 chamados, um container do painel rodando uma imagem antiga, palavras quebradas que derrubavam o NLP e chamadas à API de clima que travavam a execução. O mesmo princípio está no assistente do painel: o modelo escreve a consulta, mas a aplicação valida a SQL e mostra o que foi executado.
+A regra principal foi revisão íntegra do código e decisões não aceitar número nem conclusão sem execução real. Conferir os resultados e rodar tudo do zero com `docker compose up` pegou problemas que passariam despercebidos: a regra de duplicatas que descartava 429 chamados, um container do painel rodando uma imagem antiga, palavras quebradas que derrubavam o NLP e chamadas à API de clima que travavam a execução. O mesmo princípio está no assistente do painel: o modelo escreve a consulta, mas a aplicação valida a SQL e mostra o que foi executado.
 
 ## Como executar localmente
 
